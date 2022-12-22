@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     @property
     def db_conn_str(self) -> str:
         return (
-            f"postgresql://"
+            f"postgresql+asyncpg://"
             f"{self.db_user}:"
             f"{self.db_password}@"
             f"{self.db_host}:"
