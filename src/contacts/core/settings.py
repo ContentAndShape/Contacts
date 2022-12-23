@@ -15,14 +15,25 @@ class Settings(BaseSettings):
     db_port: int = 5432
 
     @property
-    def db_conn_str(self) -> str:
+    def _db_creds(self) -> str:
         return (
-            f"postgresql+asyncpg://"
             f"{self.db_user}:"
             f"{self.db_password}@"
             f"{self.db_host}:"
             f"{self.db_port}/"
             f"{self.db_name}"
+        )
+
+    @property
+    def db_conn_str(self) -> str:
+        return (
+            f"postgresql://{self._db_creds}"
+        )
+
+    @property
+    def async_db_conn_str(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self._db_creds}"
         )
 
     class Config:
