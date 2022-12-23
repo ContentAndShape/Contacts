@@ -12,10 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 
-from metaclasses import RoleEnum
-
-
-engine = create_engine("postgresql://docker:docker@127.0.0.1:5432/docker")
+from .metaclasses import RoleEnum
 
 
 class Base:
@@ -45,5 +42,3 @@ class Contact(Base):
     job_title = Column(String(100))
     email = Column(String(100))
     phone_number = Column(String(100))
-
-Base.metadata.create_all(engine)
