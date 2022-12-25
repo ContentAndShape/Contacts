@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     db_host: str = '127.0.0.1'
     db_port: int = 5432
 
+    secret: str
+
     @property
     def _db_creds(self) -> str:
         return (
