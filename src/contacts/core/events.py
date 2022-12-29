@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from loguru import logger
 
 from .settings import Settings
-from ..db.events import connect_to_db, disconnect_from_db
+from contacts.db.events import connect_to_db, disconnect_from_db
 
 
 def get_startup_handler(app: FastAPI, settings: Settings) -> Callable:
