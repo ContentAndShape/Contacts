@@ -12,8 +12,8 @@ async def connect_to_db(app: FastAPI,settings: Settings) -> None:
 
     logger.info("Connecting to db")
 
-    engine = create_async_engine(settings.db_conn_str)
-    app.state.db_engine = engine
+    engine = create_async_engine(settings.async_db_conn_str)
+    app.state.engine = engine
 
     logger.info("Connected to db")
 
@@ -25,6 +25,6 @@ async def disconnect_from_db(app: FastAPI) -> None:
 
     logger.info("Disconnecting from db")
 
-    app.state.db_engine.dispose()
+    await app.state.engine.dispose()
 
     logger.info("Connection has been closed")
