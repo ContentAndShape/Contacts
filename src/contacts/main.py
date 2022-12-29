@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 
-from core.settings import get_settings
-from core.logger import configure_logging
-from core.events import get_startup_handler, get_shutdown_handler
-from api.main_router import router
+from contacts.core.settings import get_settings
+from contacts.core.logger import configure_logging
+from contacts.core.events import get_startup_handler, get_shutdown_handler
+from contacts.api.router import router
 
 
 def get_app() -> FastAPI:
@@ -21,7 +21,7 @@ def get_app() -> FastAPI:
         "shutdown", 
         get_shutdown_handler(app),
     )
-    app.include_router(router,prefix=settings.api_prefix)
+    app.include_router(router, prefix=settings.api_prefix)
 
     return app
 
