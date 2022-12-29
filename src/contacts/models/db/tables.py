@@ -8,9 +8,9 @@ from sqlalchemy import (
     Integer,
     String,
     ForeignKey,
-    create_engine
+    Enum,
 )
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import UUID
 
 from .metaclasses import RoleEnum
 
@@ -27,18 +27,19 @@ Base = declarative_base(cls=Base)
 class User(Base):
     id = Column(Integer, primary_key=True)
     contacts = relationship("Contact", back_populates="owner")
-    username = Column(String(100))
-    hashed_password = Column(String(100))
-    role = Column(ENUM(RoleEnum))
+    username = Column(String(100), nullable=False)
+    hashed_password = Column(String(100), nullable=False)
+    role = Column(Enum(RoleEnum), nullable=False)
 
 
 class Contact(Base):
     id = Column(UUID, primary_key=True)
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner = relationship("User", back_populates="contacts")
     last_name = Column(String(100))
     first_name = Column(String(100))
     middle_name = Column(String(100))
-    organistation = Column(String(100))
+    organisation = Column(String(100))
     job_title = Column(String(100))
     email = Column(String(100))
-    phone_number = Column(String(100))
+    phone_number = Column(String(100), nullable=False)
