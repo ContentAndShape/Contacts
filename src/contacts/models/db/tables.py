@@ -27,7 +27,7 @@ Base = declarative_base(cls=Base)
 class User(Base):
     id = Column(Integer, primary_key=True)
     contacts = relationship("Contact", back_populates="owner")
-    username = Column(String(100), nullable=False)
+    username = Column(String(100), unique=True, nullable=False)
     hashed_password = Column(String(100), nullable=False)
     role = Column(Enum(RoleEnum), nullable=False)
 
