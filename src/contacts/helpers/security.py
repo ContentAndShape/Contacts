@@ -8,7 +8,7 @@ JWT_EXP_DELTA_MIN = 60 * 24
 ALGORITHM = "HS256"
 
 
-def get_jwt(
+def generate_jwt(
     payload: dict,
     subject: str,
     lifespan_min: int,
@@ -24,51 +24,38 @@ def get_jwt(
     )
 
 
-def jwt_expired(token: str, secret: str) -> bool:
-    try:
-        jwt.decode(token, secret, algorithms=[ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        return True
+def token_is_authenticated(token: str, secret: str) -> bool:
+    payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+    original_token = jwt.encode(payload, secret, ALGORITHM)
 
-    return False
-
-
-def get_payload_from_jwt(token: str, secret: str) -> dict | None:
-    try:
-        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
-    except jwt.exceptions.DecodeError or jwt.ExpiredSignatureError:
-        return None
-
-    return payload
-
-
-def jwt_is_valid(token: str, secret: str) -> bool:
-    payload = get_payload_from_jwt(token=token, secret=secret)
-
-    if payload is None:
-        return False
-
-    valid_token = jwt.encode(payload, secret, ALGORITHM)
-
-    return True if token == valid_token else False
+    return True if token == original_token else False
 
 
 def validate_jwt(token: str, secret: str) -> dict:
-    """Validates jwt and returns corresponding status code with details"""
+    """Validates jwt and returns status code, detail and payload"""
     response = {
-        "status_code": 200,
-        "detail": "ok",
+        "status_code": 400,
+        "detail": "bad request",
+        "payload": None,
     }
 
-    if not jwt_is_valid(token=token, secret=secret):
+    try:
+        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+    except jwt.exceptions.DecodeError:
+        response["detail"] = "token decode error"
+        return response
+    except jwt.ExpiredSignatureError:
+        response["detail"] = "expired token"
+        return response
+
+    if not token_is_authenticated(token, secret):
         response["status_code"] = 401
         response["detail"] = "malformed token"
         return response
 
-    if jwt_expired(token=token, secret=secret):
-        response["status_code"] = 401
-        response["detail"] = "token expired"
-        return response
+    response["status_code"] = 200
+    response["detail"] = "ok"
+    response["payload"] = payload
 
     return response
 

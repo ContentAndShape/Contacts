@@ -15,8 +15,9 @@ from contacts.models.schemas.contacts import (
 )
 from contacts.models.db.tables import Contact
 from .dependencies.db import get_session
+from .dependencies.api import get_token
 from contacts.helpers.contacts import phone_number_is_valid, user_has_contact
-from contacts.helpers.security import validate_jwt, get_payload_from_jwt
+from contacts.helpers.security import validate_jwt
 
 
 router = APIRouter()
@@ -28,25 +29,23 @@ async def create_contact(
     response: Response,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    token: str | None = Depends(get_token),
 ) -> ContactInResponse:
-    try:
-        token = request.cookies["token"]
-    except KeyError:
-        raise HTTPException(status_code=400, detail="missing token")
+    if token is None:
+        raise HTTPException(status_code=400, detail="No token provided")
 
-    validation_res = validate_jwt(token=token, secret=request.app.state.secret)
+    valid_res = validate_jwt(token=token, secret=request.app.state.secret)
 
-    if validation_res["status_code"] != 200:
+    if valid_res["status_code"] != 200:
         raise HTTPException(
-            status_code=validation_res["status_code"], 
-            detail=validation_res["detail"],
+            status_code=valid_res["status_code"], 
+            detail=valid_res["detail"],
         )
 
-    payload = get_payload_from_jwt(token=token, secret=request.app.state.secret)
-
-    #TODO finish validation function
     if not phone_number_is_valid(phone_number=request_contact.phone_number):
         raise HTTPException(status_code=422, detail="invalid phone number")
+
+    payload = valid_res["payload"]
 
     if await user_has_contact(
         user_id=int(payload["id"]),
