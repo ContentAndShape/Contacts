@@ -1,21 +1,25 @@
 import uuid
 
+from loguru import logger
 from fastapi import APIRouter, Response, Request, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import insert
+from sqlalchemy import insert, and_
+from sqlalchemy.engine import ChunkedIteratorResult
 
 from contacts.models.schemas.contacts import (
     BaseContact,
+    ContactWithId,
     ContactInCreate,
-    ContactInGet,
+    FilterParams,
     ContactInUpdate,
     ContactInDelete,
     ContactInResponse,
+    ContactsInResponse
 )
 from contacts.models.db.tables import Contact
 from .dependencies.db import get_session
-from .dependencies.api import get_token
+from .dependencies.api import get_token, get_filter_params
 from contacts.helpers.contacts import phone_number_is_valid, user_has_contact
 from contacts.helpers.security import validate_jwt
 
@@ -43,7 +47,7 @@ async def create_contact(
         )
 
     if not phone_number_is_valid(phone_number=request_contact.phone_number):
-        raise HTTPException(status_code=422, detail="invalid phone number")
+        raise HTTPException(status_code=422, detail="invalid phone number fromat")
 
     payload = valid_res["payload"]
 
@@ -78,12 +82,75 @@ async def create_contact(
             select(Contact).where(Contact.id == contact_id)
         )
         contact = await session.scalar(stmt)
-        contact = BaseContact(
+        contact = ContactInResponse(
+            contact=ContactWithId(
                 id=contact_id,
-                phone_number=contact.phone_number,
                 last_name=contact.last_name,
                 first_name=contact.last_name,
                 middle_name=contact.middle_name,
+                organisation=contact.organisation,
+                job_title=contact.job_title,
+                email=contact.email,
+                phone_number=contact.phone_number,
+            )
+        )
+
+    return contact
+
+
+@router.get("/", response_model=ContactsInResponse)
+async def get_contacts(
+    request: Request,
+    response: Response,
+    order_by: str = "last_name",
+    filter_params: FilterParams = Depends(get_filter_params),
+    session: AsyncSession = Depends(get_session),
+    token: str | None = Depends(get_token),
+) -> ContactsInResponse:
+    if token is None:
+        raise HTTPException(status_code=400, detail="No token provided")
+
+    valid_res = validate_jwt(token=token, secret=request.app.state.secret)
+
+    if valid_res["status_code"] != 200:
+        raise HTTPException(
+            status_code=valid_res["status_code"], 
+            detail=valid_res["detail"],
+        )
+    
+    payload = valid_res["payload"]
+    user_id = int(payload["id"])
+
+    async with session.begin():
+        # Get only user-owned contacts
+        if payload["role"] == "user":
+            stmt = (
+                select(Contact).
+                filter_by(
+                    owner_id = user_id, 
+                    **filter_params.dict(exclude_none=True),
+                )
             )
 
-    return ContactInResponse(contact=contact)
+        if payload["role"] == "admin":
+            stmt = (
+                select(Contact).
+                filter_by(**filter_params.dict(exclude_none=True))
+            )
+
+        stmt = stmt.order_by(order_by)
+        result: ChunkedIteratorResult = await session.execute(stmt)
+
+        contacts = ContactsInResponse(
+            contacts=[BaseContact(
+                first_name=contact.first_name,
+                last_name=contact.last_name,
+                middle_name=contact.middle_name,
+                organisation=contact.organisation,
+                job_title=contact.job_title,
+                email=contact.email,
+                phone_number=contact.phone_number,
+            ) for contact in result.scalars().all()],
+        )
+
+    return contacts
