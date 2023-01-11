@@ -9,7 +9,7 @@ from contacts.models.schemas.users import (
     UserInResponse,
     BaseUser,
 )
-from contacts.helpers.security import get_jwt, passwords_match
+from contacts.helpers.security import generate_jwt, passwords_match
 from contacts.models.db.tables import User
 from .dependencies.db import get_session
 
@@ -42,7 +42,7 @@ async def login(
             role=db_user.role.value,
         )
 
-    token = get_jwt(
+    token = generate_jwt(
         payload=payload.dict(),
         subject="access",
         lifespan_min=30,
