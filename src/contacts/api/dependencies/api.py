@@ -1,16 +1,35 @@
-from fastapi import Request
+import jwt
+
+from fastapi import Request, HTTPException
 from pydantic import EmailStr
 
-from contacts.models.schemas.contacts import FilterParams
+from contacts.helpers.security import ALGORITHM, validate_jwt
+from contacts.models.schemas.contacts import BaseContact, FilterParams
 
 
-def get_token(request: Request) -> str | None:
+def get_token_from_cookies(cookies: dict) -> str | None:
     try:
-        token = request.cookies["token"]
+        token = cookies["token"]
     except KeyError:
-        return None
+        token = None
 
     return token
+
+
+def get_payload_from_jwt(request: Request) -> dict:
+    token = get_token_from_cookies(request.cookies)
+    secret = request.app.state.secret
+
+    return jwt.decode(token, secret, algorithms=[ALGORITHM])
+
+
+def verify_jwt(request: Request) -> None:
+    token = get_token_from_cookies(request.cookies)
+
+    if token is None:
+        raise HTTPException(status_code=400, detail="no token provided")
+
+    validate_jwt(token, request.app.state.secret)
 
 
 def get_filter_params(
@@ -33,3 +52,14 @@ def get_filter_params(
         email=email,
         phone_number=phone_number,
     )
+
+
+def validate_phone_number(request_contact: BaseContact) -> None:
+    if len(request_contact.phone_number) != 11:
+        raise HTTPException(status_code=422, detail="invalid phone number length")
+    
+    for char in request_contact.phone_number:
+        try:
+            int(char)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="invalid phone number format")
