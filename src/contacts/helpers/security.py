@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
-
 import jwt
 import bcrypt
+
+from fastapi import HTTPException
 
 
 JWT_EXP_DELTA_MIN = 60 * 24
@@ -31,33 +32,16 @@ def token_is_authenticated(token: str, secret: str) -> bool:
     return True if token == original_token else False
 
 
-def validate_jwt(token: str, secret: str) -> dict:
-    """Validates jwt and returns status code, detail and payload"""
-    response = {
-        "status_code": 400,
-        "detail": "bad request",
-        "payload": None,
-    }
-
+def validate_jwt(token: str, secret: str) -> None:
     try:
-        payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
+        jwt.decode(token, secret, algorithms=[ALGORITHM])
     except jwt.exceptions.DecodeError:
-        response["detail"] = "token decode error"
-        return response
+        raise HTTPException(status_code=400, detail="token decode error")
     except jwt.ExpiredSignatureError:
-        response["detail"] = "expired token"
-        return response
+        raise HTTPException(status_code=400, detail="expired token signature")
 
     if not token_is_authenticated(token, secret):
-        response["status_code"] = 401
-        response["detail"] = "malformed token"
-        return response
-
-    response["status_code"] = 200
-    response["detail"] = "ok"
-    response["payload"] = payload
-
-    return response
+        raise HTTPException(status_code=401, detail="malformed token")
 
 
 def hash_password(pw: str) -> str:
