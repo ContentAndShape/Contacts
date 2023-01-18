@@ -1,6 +1,6 @@
 import os
 import asyncio
-from random import randint
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
@@ -21,8 +21,8 @@ from asgi_lifespan import LifespanManager
 from src.contacts.core.settings import get_settings
 from src.contacts.main import app
 from src.contacts.helpers.security import hash_password
-from src.contacts.models.db.metaclasses import RoleEnum
-from src.contacts.models.db.tables import User
+from src.contacts.models.db.tables import User, Contact
+from . import model_generator
 
 
 SETTINGS = get_settings()
@@ -63,14 +63,16 @@ async def client() -> AsyncClient:
 
 
 async def create_user(
-    username: str,
-    id: int = None,
-    password: str = '123',
-    role: RoleEnum = 'user',
+    username: str | None = None,
+    id: int | None = None,
+    password: str | None = None,
+    role: str | None = None,
 ) -> ScalarResult:
-
-    if id is None:
-        id = randint(0, 1000)
+    default_user = model_generator.User()
+    id = id or default_user.id
+    username = username or default_user.username
+    password = password or default_user.password
+    role = role or default_user.role
 
     async with ASYNC_SESSION() as session, session.begin():
         stmt = (
@@ -90,3 +92,48 @@ async def create_user(
         user = await session.scalar(stmt)
         
     return user
+
+
+async def create_contact(
+    owner_id: str,
+    phone_number: str,
+    id: UUID | None = None,
+    last_name: str | None = None,
+    first_name: str | None = None,
+    middle_name: str | None = None,
+    organistation: str | None = None,
+    job_title: str | None = None,
+    email: str | None = None,
+) -> ScalarResult:
+    default_contact = model_generator.Contact
+    id = id or str(default_contact.id)
+    last_name = last_name or default_contact.last_name
+    first_name = first_name or default_contact.first_name
+    middle_name = middle_name or default_contact.middle_name
+    organistation = organistation or default_contact.organistation
+    job_title = job_title or default_contact.job_title
+    email = email or default_contact.email
+
+    async with ASYNC_SESSION() as session, session.begin():
+        stmt = (
+            insert(Contact).
+            values(
+                id=id,
+                last_name=last_name,
+                first_name=first_name,
+                middle_name=middle_name,
+                owner_id=owner_id,
+                organistation=organistation,
+                job_title=job_title,
+                email=email,
+                phone_number=phone_number,
+            )
+        )
+        await session.execute(stmt)
+        stmt = (
+            select(Contact).
+            where(Contact.id == id)
+        )
+        contact = await session.scalar(stmt)
+
+        return contact
