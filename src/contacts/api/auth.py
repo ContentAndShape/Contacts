@@ -1,64 +1,45 @@
-from fastapi import APIRouter, Response, Request, HTTPException, Depends
-from sqlalchemy.future import select
+from fastapi import (
+    APIRouter, 
+    Request, 
+    HTTPException, 
+    Depends,
+)
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
-from contacts.models.schemas.users import (
-    UserInLogin,
-    UserInCreate,
-    UserInResponse,
-    BaseUser,
-)
-from contacts.helpers.security import generate_jwt, passwords_match
-from contacts.models.db.tables import User
+from contacts.models.schemas.auth import Token
+from contacts.helpers.security import generate_jwt
+from contacts.helpers.auth import authenticate_user
 from .dependencies.db import get_session
 
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=UserInResponse)
-async def login(
-    request_user: UserInLogin,
-    response: Response,
+@router.post("/token", response_model=Token)
+async def access_token_login(
     request: Request,
-    session: AsyncSession = Depends(get_session),
-) -> UserInResponse:
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db_session: AsyncSession = Depends(get_session),
+) -> Token:
+    logger.debug(f"Trying to auth user '{form_data.username}'")
+    user = await authenticate_user(
+        form_data.username, 
+        form_data.password, 
+        db_session,
+    )
 
-    async with session.begin():
-        stmt = select(User).where(User.username == request_user.username)
-        db_user = await session.scalar(stmt)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
 
-        if db_user is None:
-            raise HTTPException(status_code=404)
-
-        if not passwords_match(
-            plain_pw=request_user.password, hashed_pw=db_user.hashed_password
-        ):
-            raise HTTPException(status_code=401)
-
-        payload = BaseUser(
-            id=db_user.id,
-            role=db_user.role.value,
-        )
+    data = {"sub": user.id}
 
     token = generate_jwt(
-        payload=payload.dict(),
+        payload=data,
         subject="access",
         lifespan_min=30,
         secret=request.app.state.secret,
     )
 
-    # May be swapped to return token along with response
-    response.set_cookie(
-        key="token",
-        value=token,
-        httponly=True,
-    )
-
-    return UserInResponse(user=payload)
-
-
-# @router.post("/register", response_model=UserInResponse)
-# async def register(user: UserInCreate, db_interface: ...):
-#     ...
+    return Token(access_token=token, token_type="bearer")
