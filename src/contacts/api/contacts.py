@@ -1,10 +1,10 @@
 import uuid
 
 from loguru import logger
-from fastapi import APIRouter, Response, Request, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import insert, and_
+from sqlalchemy import insert
 from sqlalchemy.engine import ChunkedIteratorResult
 
 from contacts.models.schemas.contacts import (
@@ -19,53 +19,45 @@ from contacts.models.schemas.contacts import (
 )
 from contacts.models.db.tables import Contact
 from .dependencies.db import get_session
-from .dependencies.api import get_token, get_filter_params
-from contacts.helpers.contacts import phone_number_is_valid, user_has_contact
-from contacts.helpers.security import validate_jwt
+from .dependencies.api import (
+    verify_jwt, 
+    get_payload_from_jwt, 
+    get_filter_params, 
+    validate_phone_number,
+)
+from contacts.helpers.contacts import user_has_contact
 
 
 router = APIRouter()
 
 
-@router.post("/", response_model=ContactInResponse)
+@router.post(
+    "", 
+    response_model=ContactInResponse, 
+    status_code=201,
+    dependencies=[Depends(verify_jwt), Depends(validate_phone_number)]
+)
 async def create_contact(
     request_contact: ContactInCreate,
-    response: Response,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-    token: str | None = Depends(get_token),
+    payload: str = Depends(get_payload_from_jwt),
+    db_session: AsyncSession = Depends(get_session),
 ) -> ContactInResponse:
-    if token is None:
-        raise HTTPException(status_code=400, detail="No token provided")
-
-    valid_res = validate_jwt(token=token, secret=request.app.state.secret)
-
-    if valid_res["status_code"] != 200:
-        raise HTTPException(
-            status_code=valid_res["status_code"], 
-            detail=valid_res["detail"],
-        )
-
-    if not phone_number_is_valid(phone_number=request_contact.phone_number):
-        raise HTTPException(status_code=422, detail="invalid phone number fromat")
-
-    payload = valid_res["payload"]
 
     if await user_has_contact(
-        user_id=int(payload["id"]),
+        user_id=int(payload["sub"]),
         phone_number=request_contact.phone_number,
-        session=session,
+        session=db_session,
     ):
         raise HTTPException(status_code=409, detail=f"phone number already exist")
 
     contact_id = str(uuid.uuid4())
 
-    async with session.begin():
+    async with db_session.begin():
         stmt = (
             insert(Contact).
             values(
                 id=contact_id,
-                owner_id=int(payload["id"]),
+                owner_id=int(payload["sub"]),
                 last_name=request_contact.last_name,
                 first_name=request_contact.first_name,
                 middle_name=request_contact.middle_name,
@@ -75,13 +67,13 @@ async def create_contact(
                 phone_number=request_contact.phone_number,
             )
         )
-        await session.execute(stmt)
+        await db_session.execute(stmt)
 
-    async with session.begin():
+    async with db_session.begin():
         stmt = (
             select(Contact).where(Contact.id == contact_id)
         )
-        contact = await session.scalar(stmt)
+        contact = await db_session.scalar(stmt)
         contact = ContactInResponse(
             contact=ContactWithId(
                 id=contact_id,
@@ -98,36 +90,26 @@ async def create_contact(
     return contact
 
 
-@router.get("/", response_model=ContactsInResponse)
+@router.get(
+    "", 
+    response_model=ContactsInResponse,
+    dependencies=[Depends(verify_jwt)],
+)
 async def get_contacts(
-    request: Request,
-    response: Response,
     order_by: str = "last_name",
     filter_params: FilterParams = Depends(get_filter_params),
-    session: AsyncSession = Depends(get_session),
-    token: str | None = Depends(get_token),
+    payload: str = Depends(get_payload_from_jwt),
+    db_session: AsyncSession = Depends(get_session),
 ) -> ContactsInResponse:
-    if token is None:
-        raise HTTPException(status_code=400, detail="No token provided")
+    user_id = int(payload["sub"])
 
-    valid_res = validate_jwt(token=token, secret=request.app.state.secret)
-
-    if valid_res["status_code"] != 200:
-        raise HTTPException(
-            status_code=valid_res["status_code"], 
-            detail=valid_res["detail"],
-        )
-    
-    payload = valid_res["payload"]
-    user_id = int(payload["id"])
-
-    async with session.begin():
+    async with db_session.begin():
         # Get only user-owned contacts
         if payload["role"] == "user":
+            filter_params.owner_id = user_id
             stmt = (
                 select(Contact).
                 filter_by(
-                    owner_id = user_id, 
                     **filter_params.dict(exclude_none=True),
                 )
             )
@@ -139,7 +121,7 @@ async def get_contacts(
             )
 
         stmt = stmt.order_by(order_by)
-        result: ChunkedIteratorResult = await session.execute(stmt)
+        result: ChunkedIteratorResult = await db_session.execute(stmt)
 
         contacts = ContactsInResponse(
             contacts=[BaseContact(
@@ -154,3 +136,16 @@ async def get_contacts(
         )
 
     return contacts
+
+
+@router.put(
+    "", 
+    response_model=ContactInResponse,
+    dependencies=[Depends(verify_jwt), Depends(validate_phone_number)],
+)
+async def update_contact(
+    request_contact: ContactInUpdate,
+    contact_id: str,
+    db_session: AsyncSession = Depends(get_session),
+) -> ContactInResponse:
+    ...
