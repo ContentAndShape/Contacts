@@ -5,13 +5,24 @@ from contacts.models.db.tables import User
 from contacts.models.db.entities import UserInDb
 
 
-async def get_user(username: str, session: AsyncSession) -> UserInDb | None:
+async def get_user(
+    session: AsyncSession,
+    id: int | None = None,
+    username: str | None = None,
+) -> UserInDb | None:
+
     async with session.begin():
-        stmt = select(User).where(User.username == username)
+        if id:
+            stmt = select(User).where(User.id == id)
+        elif username:
+            stmt = select(User).where(User.username == username)
+        else:
+            return None
+
         user: User = await session.scalar(stmt)
 
         if user is None:
-            return None
+            return user
 
         return UserInDb(
             id=user.id,

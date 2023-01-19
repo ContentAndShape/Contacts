@@ -10,7 +10,7 @@ async def authenticate_user(
     password: str, 
     session: AsyncSession,
 ) -> UserInDb | None:
-    user = await get_user(username, session)
+    user = await get_user(username=username, session=session)
 
     if user is None:
         return None
