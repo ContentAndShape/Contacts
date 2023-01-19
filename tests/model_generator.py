@@ -33,11 +33,11 @@ class User:
 @dataclass
 class Contact:
     owner_id: int
-    phone_number: str = field(default_factory=rand_phone_number)
     id: uuid.UUID = field(default_factory=uuid.uuid4)
+    phone_number: str = field(default_factory=rand_phone_number)
     last_name: str = field(default_factory=rand_str)
     first_name: str = field(default_factory=rand_str)
     middle_name: str = field(default_factory=rand_str)
-    organistation: str = field(default_factory=rand_str)
+    organisation: str = field(default_factory=rand_str)
     job_title: str = field(default_factory=rand_str)
     email: str = field(default_factory=rand_email)
