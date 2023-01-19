@@ -9,35 +9,41 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine, 
     AsyncSession,
 )
-from alembic.config import Config
-from alembic import command
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import insert
 from sqlalchemy.future import select
 from sqlalchemy.engine import ScalarResult
+from alembic.config import Config
+from alembic import command
 from httpx import AsyncClient
 from asgi_lifespan import LifespanManager
 
 from src.contacts.core.settings import get_settings
-from src.contacts.main import app
+from src.contacts.main import get_app
 from src.contacts.helpers.security import hash_password
 from src.contacts.models.db.tables import User, Contact
 from . import model_generator
 
-
+# APP
+APP = get_app()
+API_URL = f'http://127.0.0.1:8000/api/v1'
 SETTINGS = get_settings()
-ALEMBIC_CFG = Config(f"{os.path.abspath('.')}/alembic.ini")
-ASYNC_ENGINE = create_async_engine(SETTINGS.async_db_conn_str + "?prepared_statement_cache_size=0")
+
+# DB
+NON_CACHED_DB_CONN_STR = SETTINGS.async_db_conn_str + "?prepared_statement_cache_size=0"
+ALEMBIC_CFG = Config()
+ALEMBIC_CFG.set_main_option("script_location", "src/contacts/db/migrations")
+ALEMBIC_CFG.set_main_option('sqlalchemy.url', NON_CACHED_DB_CONN_STR)
+ASYNC_ENGINE = create_async_engine(NON_CACHED_DB_CONN_STR)
 ASYNC_SESSION = sessionmaker(
     ASYNC_ENGINE,
     expire_on_commit=False,
     class_=AsyncSession,
 )
-API_URL = f'http://127.0.0.1:8000/api/v1'
 
 
 @pytest.fixture(scope='session')
-def event_loop(request):
+def event_loop(request: FixtureRequest):
     """Create an instance of the default event loop for each test case.
     https://github.com/pytest-dev/pytest-asyncio/issues/38#issuecomment-264418154
     """
@@ -46,7 +52,7 @@ def event_loop(request):
     loop.close()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def create_tables(request: FixtureRequest) -> None:
     command.upgrade(ALEMBIC_CFG, "+1")
 
@@ -58,7 +64,7 @@ def create_tables(request: FixtureRequest) -> None:
 
 @pytest_asyncio.fixture(scope="session")
 async def client() -> AsyncClient:
-    async with AsyncClient(app=app, base_url=API_URL) as client, LifespanManager(app):
+    async with AsyncClient(app=APP, base_url=API_URL) as client, LifespanManager(APP):
         yield client
 
 
@@ -95,24 +101,27 @@ async def create_user(
 
 
 async def create_contact(
-    owner_id: str,
-    phone_number: str,
+    owner_id: int,
+    phone_number: str | None = None,
     id: UUID | None = None,
     last_name: str | None = None,
     first_name: str | None = None,
     middle_name: str | None = None,
-    organistation: str | None = None,
+    organisation: str | None = None,
     job_title: str | None = None,
     email: str | None = None,
 ) -> ScalarResult:
-    default_contact = model_generator.Contact
-    id = id or str(default_contact.id)
+    default_contact = model_generator.Contact(owner_id=owner_id)
+    id = id or default_contact.id
+    phone_number = phone_number or default_contact.phone_number
     last_name = last_name or default_contact.last_name
     first_name = first_name or default_contact.first_name
     middle_name = middle_name or default_contact.middle_name
-    organistation = organistation or default_contact.organistation
+    organisation = organisation or default_contact.organisation
     job_title = job_title or default_contact.job_title
     email = email or default_contact.email
+
+    id = str(id)
 
     async with ASYNC_SESSION() as session, session.begin():
         stmt = (
@@ -123,7 +132,7 @@ async def create_contact(
                 first_name=first_name,
                 middle_name=middle_name,
                 owner_id=owner_id,
-                organistation=organistation,
+                organisation=organisation,
                 job_title=job_title,
                 email=email,
                 phone_number=phone_number,
@@ -137,3 +146,14 @@ async def create_contact(
         contact = await session.scalar(stmt)
 
         return contact
+
+
+async def get_access_token(username: str, password: str) -> str:
+    async with AsyncClient(app=APP, base_url=API_URL) as client:
+        data = {
+            "username": username,
+            "password": password,
+        }
+        res = await client.post(url="/auth/token", data=data)
+    
+    return res.json()["access_token"]
