@@ -2,14 +2,24 @@ import jwt
 
 from fastapi import Request, HTTPException
 from pydantic import EmailStr
+from loguru import logger
 
 from contacts.helpers.security import ALGORITHM, validate_jwt
 from contacts.models.schemas.contacts import BaseContact, FilterParams
 
 
-def get_token_from_cookies(cookies: dict) -> str | None:
+# def get_token_from_cookies(cookies: dict) -> str | None:
+#     try:
+#         token = cookies["token"]
+#     except KeyError:
+#         token = None
+# 
+#     return token
+
+
+def get_token_from_headers(headers: dict) -> str | None:
     try:
-        token = cookies["token"]
+        token = headers["access_token"]
     except KeyError:
         token = None
 
@@ -17,14 +27,16 @@ def get_token_from_cookies(cookies: dict) -> str | None:
 
 
 def get_payload_from_jwt(request: Request) -> dict:
-    token = get_token_from_cookies(request.cookies)
+    # token = get_token_from_cookies(request.cookies)
+    token = get_token_from_headers(headers=request.headers)
     secret = request.app.state.secret
 
     return jwt.decode(token, secret, algorithms=[ALGORITHM])
 
 
 def verify_jwt(request: Request) -> None:
-    token = get_token_from_cookies(request.cookies)
+    # token = get_token_from_cookies(request.cookies)
+    token = get_token_from_headers(headers=request.headers)
 
     if token is None:
         raise HTTPException(status_code=400, detail="no token provided")
