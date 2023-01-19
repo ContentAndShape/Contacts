@@ -23,7 +23,6 @@ async def access_token_login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db_session: AsyncSession = Depends(get_session),
 ) -> Token:
-    logger.debug(f"Trying to auth user '{form_data.username}'")
     user = await authenticate_user(
         form_data.username, 
         form_data.password, 
@@ -33,11 +32,11 @@ async def access_token_login(
     if user is None:
         raise HTTPException(status_code=401, detail="Incorrect username or password")
 
-    data = {"sub": user.id}
+    data = {"role": user.role}
 
     token = generate_jwt(
         payload=data,
-        subject="access",
+        subject=user.id,
         lifespan_min=30,
         secret=request.app.state.secret,
     )
