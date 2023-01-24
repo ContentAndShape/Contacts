@@ -1,46 +1,30 @@
 import jwt
 
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
 from loguru import logger
 
+from contacts.models.schemas.auth import Token, PayloadData
 from contacts.helpers.security import ALGORITHM, validate_jwt
-from contacts.models.schemas.contacts import BaseContact, FilterParams
+from contacts.models.schemas.contacts import BaseContact
+from contacts.models.schemas.meta import ContactsFilterParams
 
 
-# def get_token_from_cookies(cookies: dict) -> str | None:
-#     try:
-#         token = cookies["token"]
-#     except KeyError:
-#         token = None
-# 
-#     return token
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/v1/auth/token",
+)
 
 
-def get_token_from_headers(headers: dict) -> str | None:
-    try:
-        token = headers["access_token"]
-    except KeyError:
-        token = None
-
-    return token
+def get_payload_from_jwt(request: Request, token: str = Depends(oauth2_scheme)) -> PayloadData:
+    payload = jwt.decode(token, request.app.state.secret, algorithms=[ALGORITHM])
+    return PayloadData(**payload)
 
 
-def get_payload_from_jwt(request: Request) -> dict:
-    # token = get_token_from_cookies(request.cookies)
-    token = get_token_from_headers(headers=request.headers)
-    secret = request.app.state.secret
-
-    return jwt.decode(token, secret, algorithms=[ALGORITHM])
-
-
-def verify_jwt(request: Request) -> None:
-    # token = get_token_from_cookies(request.cookies)
-    token = get_token_from_headers(headers=request.headers)
-
+def process_jwt(request: Request, token: Token = Depends(oauth2_scheme)) -> None:
+    """Entrypoint for token processing"""
     if token is None:
         raise HTTPException(status_code=400, detail="no token provided")
-
     validate_jwt(token, request.app.state.secret)
 
 
@@ -53,8 +37,8 @@ def get_filter_params(
     organisation: str | None = None,
     email: EmailStr | None = None,
     phone_number: str | None = None,
-) -> FilterParams:
-    return FilterParams(
+) -> ContactsFilterParams:
+    return ContactsFilterParams(
         owner_id=owner_id,
         last_name=last_name,
         first_name=first_name,

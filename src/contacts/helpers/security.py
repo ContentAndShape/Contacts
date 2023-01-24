@@ -4,22 +4,22 @@ import bcrypt
 
 from fastapi import HTTPException
 
+from contacts.models.schemas.auth import PayloadData
+
 
 JWT_EXP_DELTA_MIN = 60 * 24
 ALGORITHM = "HS256"
 
 
 def generate_jwt(
-    payload: dict,
-    subject: str,
+    payload: PayloadData,
     lifespan_min: int,
     secret: str,
 ) -> str:
-    payload["sub"] = subject
-    payload["exp"] = datetime.utcnow() + timedelta(minutes=lifespan_min)
+    payload.exp = datetime.utcnow() + timedelta(minutes=lifespan_min)
 
     return jwt.encode(
-        payload,
+        payload.dict(),
         secret,
         algorithm=ALGORITHM,
     )
@@ -58,3 +58,7 @@ def passwords_match(plain_pw: str, hashed_pw: str) -> bool:
         plain_pw.encode("utf-8"),
         hashed_pw.encode("utf-8"),
     )
+
+
+def get_payload_from_jwt(token: str, secret: str) -> dict:
+    return jwt.decode(token, secret, algorithms=[ALGORITHM])
