@@ -1,16 +1,11 @@
-from enum import Enum
-
 from pydantic import BaseModel
 
-
-class RoleEnum(str, Enum):
-    admin = 'admin'
-    user = 'user'
+from .meta import UserRoleEnum
 
 
 class BaseUser(BaseModel):
     id: str
-    role: RoleEnum
+    role: UserRoleEnum
 
     class Config:
         use_enum_values = True
