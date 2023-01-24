@@ -25,18 +25,7 @@ class ContactInCreate(BaseModel):
     organisation: str
     job_title: str
     email: EmailStr
-    phone_number: str
-
-
-class FilterParams(BaseModel):
-    owner_id: Optional[int]
-    last_name: Optional[str]
-    first_name: Optional[str]
-    middle_name: Optional[str]
-    job_title: Optional[str]
-    organisation: Optional[str]
-    email: Optional[EmailStr]
-    phone_number: Optional[str]    
+    phone_number: str   
 
 
 class ContactInUpdate(BaseModel):
