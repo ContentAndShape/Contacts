@@ -1,13 +1,17 @@
 import jwt
 
+from loguru import logger
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
-from loguru import logger
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from contacts.models.schemas.auth import Token, PayloadData
 from contacts.helpers.security import ALGORITHM, validate_jwt
+from .db import get_session
+from contacts.db.crud.users import get_user
+from contacts.models.schemas.auth import Token, PayloadData
 from contacts.models.schemas.contacts import BaseContact
+from contacts.models.schemas.users import UserInCreate
 from contacts.models.schemas.meta import ContactsFilterParams
 
 
@@ -59,3 +63,16 @@ def validate_phone_number(request_contact: BaseContact) -> None:
             int(char)
         except ValueError:
             raise HTTPException(status_code=422, detail="invalid phone number format")
+
+
+#TODO optimize this
+async def check_user_uniqueness(
+    user: UserInCreate, 
+    session: AsyncSession = Depends(get_session)
+) -> None:
+    user_db = await get_user(username=user.username, session=session)
+    if user_db:
+        raise HTTPException(status_code=409, detail="username already exist")
+    user_db = await get_user(id=user.id, session=session)
+    if user_db:
+        raise HTTPException(status_code=409, detail="id already exist")
