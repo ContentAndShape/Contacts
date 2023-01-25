@@ -4,7 +4,7 @@ from .meta import UserRoleEnum
 
 
 class BaseUser(BaseModel):
-    id: str
+    id: int
     role: UserRoleEnum
 
     class Config:
@@ -16,6 +16,7 @@ class UserInResponse(BaseModel):
 
 
 class UserInCreate(BaseUser):
+    username: str
     password: str
 
 
