@@ -83,7 +83,7 @@ class TestCreate:
 @pytest.mark.usefixtures("create_tables")
 class TestRead:
     @pytest.mark.asyncio
-    async def test_400_wrong_filters(self, client: AsyncClient):
+    async def test_400_wrong_order_param(self, client: AsyncClient):
         user = model_generator.User()
         user_data = {
             "username": user.username,
@@ -93,7 +93,6 @@ class TestRead:
         token = await get_access_token(**user_data)
         contact = await create_contact(owner_id=user.id)
         params = {
-            "foo": "bar",
             "order_by": "foo",
         }
 
@@ -102,5 +101,42 @@ class TestRead:
         assert "Incorrect order parameter" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_200(self, client: AsyncClient):
-        ...
+    async def test_admin_get_all_contacts(self, client: AsyncClient):
+        users_id = []
+        contacts_id = []
+        
+        for i in range(5):
+            user = await create_user()
+            users_id.append(user.id)
+
+        for id in users_id:
+            contact = await create_contact(owner_id=id)
+            contacts_id.append(contact.id)
+
+        admin = await create_user(role="admin")
+        token = await get_access_token(username=admin.username, password=admin.password)
+
+        response = await client.get(url="/contacts", headers=get_headers(token))
+        response_contacts_id = [
+            contact["id"] for contact in response.json()["contacts"]
+        ]
+        for id in contacts_id:
+            assert id in response_contacts_id
+
+
+    @pytest.mark.asyncio
+    async def test_user_get_all_contacts(self, client: AsyncClient):
+        for i in range(5):
+            user = await create_user()
+            await create_contact(owner_id=user.id)
+
+        user = await create_user()
+        contact = await create_contact(owner_id=user.id)
+        token = await get_access_token(username=user.username, password=user.password)
+
+        response = await client.get(url="/contacts", headers=get_headers(token))
+        assert response.json()["contacts"][0]["id"] == contact.id
+
+
+#TODO test update user/admin role
+#TODO test delete user/admin role
