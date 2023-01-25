@@ -96,6 +96,7 @@ async def create_user(
             where(User.id == id)
         )
         user = await session.scalar(stmt)
+        user.__dict__["password"] = password
         
     return user
 
