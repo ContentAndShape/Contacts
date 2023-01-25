@@ -3,9 +3,8 @@ from dataclasses import asdict
 import pytest
 from httpx import AsyncClient
 
-from ..conftest import create_user, create_contact, get_access_token
+from ..conftest import create_user, create_contact, get_access_token, get_headers
 from .. import model_generator
-#TODO make scheme for headers
 #TODO assert response details with error strings from separate module
 
 @pytest.mark.usefixtures("create_tables")
@@ -19,16 +18,13 @@ class TestCreate:
         }
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
-        headers = {
-            "Authorization": "Bearer " + token,
-        }
         contact = model_generator.Contact(owner_id=user.id)
         contact.phone_number += "11111"
         contact.id = str(contact.id)
 
         # Invalid length
         response = await client.post(
-            url="/contacts", json=asdict(contact), headers=headers
+            url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 422
         assert "length" in response.json()["detail"]
@@ -41,7 +37,7 @@ class TestCreate:
 
         # Invalid format
         response = await client.post(
-            url="/contacts", json=asdict(contact), headers=headers
+            url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 422
         assert "format" in response.json()["detail"]
@@ -55,16 +51,13 @@ class TestCreate:
         }
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
-        headers = {
-            "Authorization": "Bearer " + token,
-        }
         contact_in_db = await create_contact(owner_id=user.id)
         contact = model_generator.Contact(owner_id=user.id)
         contact.id = str(contact.id)
         contact.phone_number = contact_in_db.phone_number
 
         response = await client.post(
-            url="/contacts", json=asdict(contact), headers=headers
+            url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 409
         assert "already exist" in response.json()["detail"]
@@ -78,14 +71,11 @@ class TestCreate:
         }
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
-        headers = {
-            "Authorization": "Bearer " + token,
-        }
         contact = model_generator.Contact(owner_id=user.id)
         contact.id = str(contact.id)
 
         response = await client.post(
-            url="/contacts", json=asdict(contact), headers=headers
+            url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 201
 
@@ -101,16 +91,13 @@ class TestRead:
         }
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
-        headers = {
-            "Authorization": "Bearer " + token,
-        }
         contact = await create_contact(owner_id=user.id)
         params = {
             "foo": "bar",
             "order_by": "foo",
         }
 
-        response = await client.get(url="/contacts", headers=headers, params=params)
+        response = await client.get(url="/contacts", headers=get_headers(token), params=params)
         assert response.status_code == 400
         assert "Incorrect order parameter" in response.json()["detail"]
 

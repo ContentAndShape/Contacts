@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 
-from ..conftest import create_user, get_access_token
+from ..conftest import create_user, get_access_token, get_headers
 from .. import model_generator
 
 
@@ -91,9 +91,5 @@ class TestGet:
         user = await create_user()
         token = await get_access_token(username=user.username, password=user.password)
 
-        headers = {
-            "Authorization": "Bearer " + token,
-        }
-
-        response = await client.get(url="/users/me", headers=headers)
+        response = await client.get(url="/users/me", headers=get_headers(token))
         assert response.status_code == 200

@@ -158,3 +158,9 @@ async def get_access_token(username: str, password: str) -> str:
         res = await client.post(url="/auth/token", data=data)
     
     return res.json()["access_token"]
+
+
+def get_headers(token: str) -> dict:
+    return {
+        "Authorization": "Bearer " + token,
+    }
