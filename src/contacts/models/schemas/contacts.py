@@ -49,4 +49,4 @@ class ContactInResponse(BaseModel):
 
 
 class ContactsInResponse(BaseModel):
-    contacts: List[BaseContact]
+    contacts: List[ContactWithId]
