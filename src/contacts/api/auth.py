@@ -47,15 +47,3 @@ async def access_token_login(
     )
 
     return Token(access_token=token, token_type="bearer")
-
-
-@router.get("/me", response_model=BaseUser)
-async def get_me(
-    request: Request,
-    token: Token = Depends(oauth2_scheme),
-    payload: PayloadData = Depends(get_payload_from_jwt),
-    db_session: AsyncSession = Depends(get_session),
-) -> BaseUser:
-    user = await get_user(session=db_session, id=payload.sub)
-    
-    return BaseUser(id=user.id, role=user.role)
