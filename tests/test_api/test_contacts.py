@@ -5,7 +5,8 @@ from httpx import AsyncClient
 
 from ..conftest import create_user, create_contact, get_access_token
 from .. import model_generator
-
+#TODO make scheme for headers
+#TODO assert response details with error strings from separate module
 
 @pytest.mark.usefixtures("create_tables")
 class TestCreate:
@@ -19,7 +20,7 @@ class TestCreate:
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
         headers = {
-            "access_token": token,
+            "Authorization": "Bearer " + token,
         }
         contact = model_generator.Contact(owner_id=user.id)
         contact.phone_number += "11111"
@@ -55,12 +56,11 @@ class TestCreate:
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
         headers = {
-            "access_token": token,
+            "Authorization": "Bearer " + token,
         }
         contact_in_db = await create_contact(owner_id=user.id)
         contact = model_generator.Contact(owner_id=user.id)
         contact.id = str(contact.id)
-        # Trying to create contact with existing phone_number
         contact.phone_number = contact_in_db.phone_number
 
         response = await client.post(
@@ -79,7 +79,7 @@ class TestCreate:
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
         headers = {
-            "access_token": token,
+            "Authorization": "Bearer " + token,
         }
         contact = model_generator.Contact(owner_id=user.id)
         contact.id = str(contact.id)
@@ -88,3 +88,32 @@ class TestCreate:
             url="/contacts", json=asdict(contact), headers=headers
         )
         assert response.status_code == 201
+
+
+@pytest.mark.usefixtures("create_tables")
+class TestRead:
+    @pytest.mark.asyncio
+    async def test_400_wrong_filters(self, client: AsyncClient):
+        user = model_generator.User()
+        user_data = {
+            "username": user.username,
+            "password": user.password,
+        }
+        user = await create_user(**user_data)
+        token = await get_access_token(**user_data)
+        headers = {
+            "Authorization": "Bearer " + token,
+        }
+        contact = await create_contact(owner_id=user.id)
+        params = {
+            "foo": "bar",
+            "order_by": "foo",
+        }
+
+        response = await client.get(url="/contacts", headers=headers, params=params)
+        assert response.status_code == 400
+        assert "Incorrect order parameter" in response.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_200(self, client: AsyncClient):
+        ...
