@@ -118,4 +118,4 @@ async def update_contact(
         ):
             raise HTTPException(status_code=403, detail="user does not own this contact")
         else:
-            await update_contact_(db_session=db_session, **request_contact.dict())
+            await update_contact_(db_session=db_session, id = contact_id, **request_contact.dict())

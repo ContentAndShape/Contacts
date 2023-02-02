@@ -156,18 +156,25 @@ class TestUpdate:
     @pytest.mark.asyncio
     async def test_user_update_someones_contact(self, client: AsyncClient):
         user1 = await create_user()
-        user1_update = model_generator.Contact(owner_id=user1.id)
-        user1_update.id = str(user1_update.id)
+        contact_update = model_generator.Contact(owner_id=user1.id)
+        contact_update.id = str(contact_update.id)
         token = await get_access_token(user1.username, user1.password)
         user2 = await create_user()
         user2_contact = await create_contact(owner_id=user2.id)
 
-        response = await client.put(url=f"/contacts/{user2_contact.id}", headers=get_headers(token), json=asdict(user1_update))
+        response = await client.put(url=f"/contacts/{user2_contact.id}", headers=get_headers(token), json=asdict(contact_update))
         assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_user_update_own_contact(self, client: AsyncClient):
-        ...
+        user = await create_user()
+        token = await get_access_token(user.username, user.password)
+        contact = await create_contact(owner_id=user.id)
+        contact_update = model_generator.Contact(owner_id=user.id)
+        contact_update.id = str(contact_update.id)
+
+        response = await client.put(url=f"/contacts/{contact.id}", headers=get_headers(token), json=asdict(contact_update))
+        assert response.status_code == 204
 
     @pytest.mark.asyncio
     async def test_404(self, client: AsyncClient):
