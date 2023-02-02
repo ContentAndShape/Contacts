@@ -92,7 +92,7 @@ class TestRead:
         }
         user = await create_user(**user_data)
         token = await get_access_token(**user_data)
-        contact = await create_contact(owner_id=user.id)
+        await create_contact(owner_id=user.id)
         params = {
             "order_by": "foo",
         }
@@ -153,6 +153,24 @@ class TestUpdate:
         response = await client.put(url=f"/contacts/{contact.id}", headers=get_headers(token), json=asdict(contact))
         assert response.status_code == 204
 
+    @pytest.mark.asyncio
+    async def test_user_update_someones_contact(self, client: AsyncClient):
+        user1 = await create_user()
+        user1_update = model_generator.Contact(owner_id=user1.id)
+        user1_update.id = str(user1_update.id)
+        token = await get_access_token(user1.username, user1.password)
+        user2 = await create_user()
+        user2_contact = await create_contact(owner_id=user2.id)
 
-#TODO test update user/admin role
+        response = await client.put(url=f"/contacts/{user2_contact.id}", headers=get_headers(token), json=asdict(user1_update))
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_user_update_own_contact(self, client: AsyncClient):
+        ...
+
+    @pytest.mark.asyncio
+    async def test_404(self, client: AsyncClient):
+        ...
+
 #TODO test delete user/admin role
