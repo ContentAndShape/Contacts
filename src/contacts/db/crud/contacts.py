@@ -1,14 +1,15 @@
 import uuid
 from typing import List
 
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.engine import ChunkedIteratorResult
-from sqlalchemy import insert
+from sqlalchemy import insert, update
 from sqlalchemy.future import select
 
 from contacts.models.db.tables import Contact
 from contacts.models.db.entities import ContactInDb
-from contacts.models.schemas.meta import ContactsFilterParams
+from contacts.models.schemas.meta import ContactsFilterParams, UserRoleEnum
 from .users import get_user
 
 
@@ -59,6 +60,16 @@ async def create_contact(
         )
 
 
+async def get_contact(id: uuid.UUID, db_session: AsyncSession) -> ContactInDb | None:
+    async with db_session.begin():
+        stmt = (
+            select(Contact).
+            where(Contact.id == str(id))
+        )
+        result = await db_session.scalar(stmt)
+        return result
+
+
 async def get_user_contacts_with_filters(
     user_id: int,
     filter_params: ContactsFilterParams,
@@ -68,14 +79,14 @@ async def get_user_contacts_with_filters(
     user_in_db = await get_user(id=user_id, session=db_session)
 
     async with db_session.begin():
-        if user_in_db.role == "user":
+        if user_in_db.role == UserRoleEnum.user.value:
             filter_params.owner_id = user_id
             stmt = (
                 select(Contact).
                 filter_by(**filter_params.dict(exclude_none=True))
             )
 
-        if user_in_db.role == "admin":
+        if user_in_db.role == UserRoleEnum.admin.value:
             stmt = (
                 select(Contact).
                 filter_by(**filter_params.dict(exclude_none=True))
@@ -95,3 +106,41 @@ async def get_user_contacts_with_filters(
             email=contact.email,
             phone_number=contact.phone_number,
         ) for contact in result.scalars().all()]
+
+
+async def update_contact(
+    db_session: AsyncSession,
+    id: uuid.UUID,
+    last_name: str | None = None,
+    first_name: str | None = None,
+    middle_name: str | None = None,
+    organisation: str | None = None,
+    job_title: str | None = None,
+    email: str | None = None,
+    phone_number: str | None = None,
+) -> None:
+    async with db_session.begin():
+        stmt = (
+            update(Contact).
+            where(Contact.id == str(id)).
+            values(
+                last_name=last_name,
+                first_name=first_name,
+                middle_name=middle_name,
+                organisation=organisation,
+                job_title=job_title,
+                email=email,
+                phone_number=phone_number,
+            ).returning(
+                Contact.id,
+                Contact.owner_id,
+                Contact.last_name,
+                Contact.first_name,
+                Contact.middle_name,
+                Contact.organisation,
+                Contact.job_title,
+                Contact.email,
+                Contact.phone_number,
+            )
+        )
+        await db_session.execute(stmt)
