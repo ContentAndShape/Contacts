@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from contacts.models.schemas.contacts import (
-    BaseContact,
     ContactWithId,
     ContactInCreate,
     ContactInUpdate,
@@ -11,8 +10,8 @@ from contacts.models.schemas.contacts import (
     ContactInResponse,
     ContactsInResponse
 )
-from contacts.models.schemas.auth import Token, PayloadData
-from contacts.models.schemas.meta import ContactsFilterParams, OrderContactsByEnum
+from contacts.models.schemas.auth import PayloadData
+from contacts.models.schemas.meta import ContactsFilterParams, OrderContactsByEnum, UserRoleEnum
 from .dependencies.db import get_session
 from .dependencies.api import (
     process_jwt, 
@@ -20,8 +19,13 @@ from .dependencies.api import (
     get_filter_params, 
     validate_phone_number,
 )
-from contacts.db.crud.contacts import get_user_contacts_with_filters, create_contact as create_contact_
-from contacts.helpers.contacts import user_has_contact
+from contacts.db.crud.contacts import (
+    get_user_contacts_with_filters, 
+    create_contact as create_contact_, 
+    get_contact, 
+    update_contact as update_contact_,
+)
+from contacts.helpers.contacts import user_has_contact_with_such_number, contact_is_owned_by_user
 
 
 router = APIRouter()
@@ -42,7 +46,7 @@ async def create_contact(
     # TODO validate email (or already validated by pydantic?)
     request_user_id = payload.sub
 
-    if await user_has_contact(
+    if await user_has_contact_with_such_number(
         user_id=request_user_id,
         phone_number=request_contact.phone_number,
         session=db_session,
@@ -72,7 +76,6 @@ async def get_contacts(
     payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
 ) -> ContactsInResponse:
-    logger.debug(f"Filter param: {filter_params}")
     if order_by not in OrderContactsByEnum._member_names_:
         raise HTTPException(status_code=400, detail="Incorrect order parameter")
 
@@ -89,12 +92,27 @@ async def get_contacts(
 
 @router.put(
     "", 
-    response_model=ContactInResponse,
-    dependencies=[Depends(validate_phone_number)],
+    status_code=204,
+    dependencies=[Depends(process_jwt), Depends(validate_phone_number)],
 )
 async def update_contact(
     request_contact: ContactInUpdate,
-    contact_id: str,
+    payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
-) -> ContactInResponse:
-    ...
+) -> None:
+    contact_to_update = await get_contact(id=request_contact.id, db_session=db_session)
+    if contact_to_update is None:
+        raise HTTPException(status_code=404, detail="contact not found")
+
+    if payload.role == UserRoleEnum.admin.value:
+        await update_contact_(db_session=db_session, **request_contact.dict())
+
+    if payload.role == UserRoleEnum.user.value:
+        if not await contact_is_owned_by_user(
+            contact_id=request_contact.id, 
+            user_id=payload.sub, 
+            session=db_session
+        ):
+            raise HTTPException(status_code=403, detail="user does not own this contact")
+        else:
+            await update_contact_(db_session=db_session, **request_contact.dict())
