@@ -178,6 +178,13 @@ class TestUpdate:
 
     @pytest.mark.asyncio
     async def test_404(self, client: AsyncClient):
-        ...
+        user = await create_user()
+        token = await get_access_token(user.username, user.password)
+        non_existing_contact = model_generator.Contact(owner_id=user.id)
+        non_existing_contact.id = str(non_existing_contact.id)
+
+        response = await client.put(url=f"/contacts/{non_existing_contact.id}", headers=get_headers(token), json=asdict(non_existing_contact))
+        assert response.status_code == 404
+        
 
 #TODO test delete user/admin role
