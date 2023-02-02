@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_
@@ -9,7 +11,24 @@ def email_is_valid(email: str) -> bool:
     return False
 
 
-async def user_has_contact(
+#TODO merge user_owns_contact and contact_is_owned_by_user
+
+async def contact_is_owned_by_user(
+    contact_id: uuid.UUID, 
+    user_id: int, 
+    session: AsyncSession
+) -> bool:
+    async with session.begin():
+        stmt = (
+            select(Contact).
+            where(Contact.id == str(contact_id))
+        )
+        contact: Contact = await session.scalar(stmt)
+
+        return contact.owner_id == user_id
+
+
+async def user_has_contact_with_such_number(
     user_id: int, phone_number: str, session: AsyncSession
 ) -> bool:
     async with session.begin():
