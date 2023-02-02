@@ -5,6 +5,7 @@ from httpx import AsyncClient
 
 from ..conftest import create_user, create_contact, get_access_token, get_headers
 from .. import model_generator
+from src.contacts.models.schemas.meta import UserRoleEnum
 #TODO assert response details with error strings from separate module
 
 @pytest.mark.usefixtures("create_tables")
@@ -113,7 +114,7 @@ class TestRead:
             contact = await create_contact(owner_id=id)
             contacts_id.append(contact.id)
 
-        admin = await create_user(role="admin")
+        admin = await create_user(role=UserRoleEnum.admin.value)
         token = await get_access_token(username=admin.username, password=admin.password)
 
         response = await client.get(url="/contacts", headers=get_headers(token))
@@ -136,6 +137,21 @@ class TestRead:
 
         response = await client.get(url="/contacts", headers=get_headers(token))
         assert response.json()["contacts"][0]["id"] == contact.id
+
+
+@pytest.mark.usefixtures("create_tables")
+class TestUpdate:
+    @pytest.mark.asyncio
+    async def test_admin_update_user_contact(self, client: AsyncClient):
+        admin = await create_user(role=UserRoleEnum.admin.value)
+        user = await create_user()
+        contact = model_generator.Contact(owner_id=user.id)
+        await create_contact(id=contact.id, owner_id=user.id)
+        token = await get_access_token(username=admin.username, password=admin.password)
+        contact.id = str(contact.id)
+
+        response = await client.put(url=f"/contacts/{contact.id}", headers=get_headers(token), json=asdict(contact))
+        assert response.status_code == 204
 
 
 #TODO test update user/admin role
