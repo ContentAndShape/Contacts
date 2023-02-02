@@ -29,8 +29,6 @@ class ContactInCreate(BaseModel):
 
 
 class ContactInUpdate(BaseModel):
-    id: uuid.UUID
-    owner_id: Optional[str]
     last_name: Optional[str]
     first_name: Optional[str]
     middle_name: Optional[str]
