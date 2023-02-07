@@ -1,7 +1,7 @@
 import uuid
 
 from loguru import logger
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from contacts.models.schemas.contacts import (
@@ -13,7 +13,7 @@ from contacts.models.schemas.contacts import (
     ContactsInResponse
 )
 from contacts.models.schemas.auth import PayloadData
-from contacts.models.schemas.meta import ContactsFilterParams, OrderContactsByEnum, UserRoleEnum
+from contacts.models.schemas.meta import ContactsFilterParams, OrderContactsByEnum
 from .dependencies.db import get_session
 from .dependencies.api import (
     process_jwt, 
@@ -26,10 +26,14 @@ from .dependencies.api import (
 from contacts.db.crud.contacts import (
     get_user_contacts_with_filters, 
     create_contact as create_contact_, 
-    get_contact, 
     update_contact as update_contact_,
 )
-from contacts.helpers.contacts import user_has_contact_with_such_number, contact_is_owned_by_user
+from contacts.helpers.contacts import user_has_contact_with_such_number
+from contacts.resources.errors.contacts import (
+    USER_HAS_PHONE_NUM_EXCEPTION,
+    ORDER_PARAMS_EXCEPTION,
+    CONTACT_DOES_NOT_EXIST_EXCEPTION,
+)
 
 
 router = APIRouter()
@@ -55,7 +59,7 @@ async def create_contact(
         phone_number=request_contact.phone_number,
         session=db_session,
     ):
-        raise HTTPException(status_code=409, detail=f"phone number already exist")
+        raise USER_HAS_PHONE_NUM_EXCEPTION
 
     contact = await create_contact_(
         owner_id=request_user_id,
@@ -81,7 +85,7 @@ async def get_contacts(
     db_session: AsyncSession = Depends(get_session),
 ) -> ContactsInResponse:
     if order_by not in OrderContactsByEnum._member_names_:
-        raise HTTPException(status_code=400, detail="Incorrect order parameter")
+        raise ORDER_PARAMS_EXCEPTION
 
     contacts = await get_user_contacts_with_filters(
         user_id=payload.sub,
@@ -90,7 +94,7 @@ async def get_contacts(
         db_session=db_session,
     )
     if len(contacts) == 0:
-        raise HTTPException(status_code=404, detail="No contacts found")
+        raise CONTACT_DOES_NOT_EXIST_EXCEPTION
 
     return ContactsInResponse(
         contacts=[ContactWithId(**contact.dict()) for contact in contacts]

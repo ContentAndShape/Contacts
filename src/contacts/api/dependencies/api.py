@@ -1,7 +1,7 @@
 import jwt
 
 from loguru import logger
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,10 +12,22 @@ from .db import get_session
 from contacts.db.crud.users import get_user
 from contacts.db.crud.contacts import get_contact
 from contacts.models.schemas.auth import Token, PayloadData
-from contacts.models.schemas.meta import UserRoleEnum
+from contacts.models.schemas.meta import UserRoleEnum, ContactsFilterParams
 from contacts.models.schemas.contacts import BaseContact
 from contacts.models.schemas.users import UserInCreate
-from contacts.models.schemas.meta import ContactsFilterParams
+from contacts.resources.errors.users import (
+    USERNAME_EXIST_EXCEPTION,
+    USER_ID_EXIST_EXCEPTION,
+    USER_CONTACT_OWNERSHIP_EXCEPTION,
+)
+from contacts.resources.errors.contacts import (
+    CONTACT_DOES_NOT_EXIST_EXCEPTION,
+    PHONE_NUM_FORMAT_EXCEPTION,
+    PHONE_NUM_LEN_EXCEPTION,
+)
+from contacts.resources.errors.auth import (
+    NO_TOKEN_EXCEPTION,
+)
 
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -31,7 +43,7 @@ def get_payload_from_jwt(request: Request, token: str = Depends(oauth2_scheme)) 
 def process_jwt(request: Request, token: Token = Depends(oauth2_scheme)) -> None:
     """Entrypoint for token processing"""
     if token is None:
-        raise HTTPException(status_code=400, detail="no token provided")
+        raise NO_TOKEN_EXCEPTION
     validate_jwt(token, request.app.state.secret)
 
 
@@ -50,7 +62,7 @@ async def validate_contact_ownership(
             user_id=payload.sub, 
             session=db_session
         ):
-            raise HTTPException(status_code=403, detail="User does not own this contact")
+            raise USER_CONTACT_OWNERSHIP_EXCEPTION
 
 
 def get_filter_params(
@@ -77,20 +89,20 @@ def get_filter_params(
 
 def validate_phone_number(request_contact: BaseContact) -> None:
     if len(request_contact.phone_number) != 11:
-        raise HTTPException(status_code=422, detail="invalid phone number length")
+        raise PHONE_NUM_LEN_EXCEPTION
     
     # TODO try to int whole number
     for char in request_contact.phone_number:
         try:
             int(char)
         except ValueError:
-            raise HTTPException(status_code=422, detail="invalid phone number format")
+            raise PHONE_NUM_FORMAT_EXCEPTION
 
 
 async def check_contact_existence(contact_id: str, db_sesion = Depends(get_session)) -> None:
     contact = await get_contact(id=contact_id, db_session=db_sesion)
     if contact is None:
-        raise HTTPException(status_code=404, detail="Contact doesn't exist")
+        raise CONTACT_DOES_NOT_EXIST_EXCEPTION
 
 
 #TODO optimize this
@@ -100,7 +112,7 @@ async def check_user_uniqueness(
 ) -> None:
     user_db = await get_user(username=user.username, session=session)
     if user_db:
-        raise HTTPException(status_code=409, detail="username already exist")
+        raise USERNAME_EXIST_EXCEPTION
     user_db = await get_user(id=user.id, session=session)
     if user_db:
-        raise HTTPException(status_code=409, detail="id already exist")
+        raise USER_ID_EXIST_EXCEPTION

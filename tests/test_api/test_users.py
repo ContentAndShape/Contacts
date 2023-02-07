@@ -3,6 +3,13 @@ from httpx import AsyncClient
 
 from ..conftest import create_user, get_access_token, get_headers
 from .. import model_generator
+from src.contacts.resources.errors.auth import (
+    INCORRECT_CREDENTIALS_EXCEPTION,
+)
+from src.contacts.resources.errors.users import (
+    USER_ID_EXIST_EXCEPTION,
+    USERNAME_EXIST_EXCEPTION,
+)
 
 
 @pytest.mark.usefixtures("create_tables")
@@ -21,6 +28,7 @@ class TestLogin:
         response = await client.post(url="/auth/token", data=data)
 
         assert response.status_code == 401
+        assert response.json()["detail"] == INCORRECT_CREDENTIALS_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_login_200(self, client: AsyncClient):
@@ -52,7 +60,7 @@ class TestRegister:
 
         response = await client.post(url="/users/register", json=json)
         assert response.status_code == 409
-        assert "id already exist" in response.json()["detail"]
+        assert response.json()["detail"] == USER_ID_EXIST_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_duplicate_username(self, client: AsyncClient):
@@ -68,7 +76,7 @@ class TestRegister:
 
         response = await client.post(url="/users/register", json=json)
         assert response.status_code == 409
-        assert "username already exist" in response.json()["detail"]
+        assert response.json()["detail"] == USERNAME_EXIST_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_201(self, client: AsyncClient):

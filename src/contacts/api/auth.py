@@ -4,18 +4,18 @@ from fastapi import (
     HTTPException, 
     Depends,
 )
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from contacts.models.schemas.auth import Token, PayloadData
-from contacts.models.schemas.users import BaseUser
 from contacts.models.db.entities import UserInDb
 from contacts.helpers.security import generate_jwt
 from contacts.helpers.auth import authenticate_user
 from .dependencies.db import get_session
-from .dependencies.api import oauth2_scheme, get_payload_from_jwt
-from contacts.db.crud.users import get_user
+from contacts.resources.errors.auth import (
+    INCORRECT_CREDENTIALS_EXCEPTION,
+)
 
 
 router = APIRouter()
@@ -34,7 +34,7 @@ async def access_token_login(
     )
 
     if user is None:
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+        raise INCORRECT_CREDENTIALS_EXCEPTION
 
     data = PayloadData(
         sub=user.id,

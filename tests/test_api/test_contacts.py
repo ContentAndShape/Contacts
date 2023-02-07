@@ -6,7 +6,17 @@ from httpx import AsyncClient
 from ..conftest import create_user, create_contact, get_access_token, get_headers
 from .. import model_generator
 from src.contacts.models.schemas.meta import UserRoleEnum
-#TODO assert response details with error strings from separate module
+from src.contacts.resources.errors.contacts import (
+    PHONE_NUM_LEN_EXCEPTION,
+    PHONE_NUM_FORMAT_EXCEPTION,
+    USER_HAS_PHONE_NUM_EXCEPTION,
+    ORDER_PARAMS_EXCEPTION,
+    CONTACT_DOES_NOT_EXIST_EXCEPTION,
+)
+from src.contacts.resources.errors.users import (
+    USER_CONTACT_OWNERSHIP_EXCEPTION,
+)
+
 
 @pytest.mark.usefixtures("create_tables")
 class TestCreate:
@@ -28,7 +38,7 @@ class TestCreate:
             url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 422
-        assert "length" in response.json()["detail"]
+        assert response.json()["detail"] == PHONE_NUM_LEN_EXCEPTION.detail
 
         contact = model_generator.Contact(owner_id=user.id)
         contact.id = str(contact.id)
@@ -41,7 +51,7 @@ class TestCreate:
             url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 422
-        assert "format" in response.json()["detail"]
+        assert response.json()["detail"] == PHONE_NUM_FORMAT_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_409(self, client: AsyncClient):
@@ -61,7 +71,7 @@ class TestCreate:
             url="/contacts", json=asdict(contact), headers=get_headers(token)
         )
         assert response.status_code == 409
-        assert "already exist" in response.json()["detail"]
+        assert response.json()["detail"] == USER_HAS_PHONE_NUM_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_201(self, client: AsyncClient):
@@ -99,7 +109,7 @@ class TestRead:
 
         response = await client.get(url="/contacts", headers=get_headers(token), params=params)
         assert response.status_code == 400
-        assert "Incorrect order parameter" in response.json()["detail"]
+        assert response.json()["detail"] == ORDER_PARAMS_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_404(self, client: AsyncClient):
@@ -113,6 +123,7 @@ class TestRead:
 
         response = await client.get(url="/contacts", headers=get_headers(token))
         assert response.status_code == 404
+        assert response.json()["detail"] == CONTACT_DOES_NOT_EXIST_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_admin_get_all_contacts(self, client: AsyncClient):
@@ -137,6 +148,7 @@ class TestRead:
         for id in contacts_id:
             assert id in response_contacts_id
 
+    # TODO test user read someone's contact
 
     @pytest.mark.asyncio
     async def test_user_get_all_contacts(self, client: AsyncClient):
@@ -177,6 +189,7 @@ class TestUpdate:
 
         response = await client.put(url=f"/contacts/{user2_contact.id}", headers=get_headers(token), json=asdict(contact_update))
         assert response.status_code == 403
+        assert response.json()["detail"] == USER_CONTACT_OWNERSHIP_EXCEPTION.detail
 
     @pytest.mark.asyncio
     async def test_user_update_own_contact(self, client: AsyncClient):
@@ -198,6 +211,6 @@ class TestUpdate:
 
         response = await client.put(url=f"/contacts/{non_existing_contact.id}", headers=get_headers(token), json=asdict(non_existing_contact))
         assert response.status_code == 404
-        
+        assert response.json()["detail"] == CONTACT_DOES_NOT_EXIST_EXCEPTION.detail
 
 #TODO test delete user/admin role

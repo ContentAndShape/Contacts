@@ -2,9 +2,12 @@ from datetime import datetime, timedelta
 import jwt
 import bcrypt
 
-from fastapi import HTTPException
-
 from contacts.models.schemas.auth import PayloadData
+from contacts.resources.errors.auth import (
+    TOKEN_DECODE_EXCEPTION,
+    EXPIRED_TOKEN_SIGNATURE_EXCEPTION,
+    MALFORMED_TOKEN_EXCEPTION,
+)
 
 
 JWT_EXP_DELTA_MIN = 60 * 24
@@ -36,12 +39,12 @@ def validate_jwt(token: str, secret: str) -> None:
     try:
         jwt.decode(token, secret, algorithms=[ALGORITHM])
     except jwt.exceptions.DecodeError:
-        raise HTTPException(status_code=400, detail="token decode error")
+        raise TOKEN_DECODE_EXCEPTION
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=400, detail="expired token signature")
+        raise EXPIRED_TOKEN_SIGNATURE_EXCEPTION
 
     if not token_is_authenticated(token, secret):
-        raise HTTPException(status_code=401, detail="malformed token")
+        raise MALFORMED_TOKEN_EXCEPTION
 
 
 def hash_password(pw: str) -> str:

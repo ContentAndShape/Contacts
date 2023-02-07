@@ -2,20 +2,17 @@ from loguru import logger
 from fastapi import (
     APIRouter, 
     Request, 
-    HTTPException, 
     Depends,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from contacts.models.schemas.users import UserInCreate, UserInResponse, BaseUser
-from contacts.models.schemas.auth import Token, PayloadData
+from contacts.models.schemas.auth import PayloadData
 from contacts.models.db.entities import UserInDb
 from contacts.api.dependencies.api import (
-    validate_jwt,
     process_jwt,
     check_user_uniqueness,
     get_payload_from_jwt, 
-    oauth2_scheme,
 )
 from contacts.api.dependencies.db import get_session
 from contacts.db.crud.users import create_user, get_user
@@ -35,6 +32,7 @@ async def get_me(
     payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
 ) -> BaseUser:
+    # TODO return username instead of id
     user = await get_user(session=db_session, id=payload.sub)
     return BaseUser(id=user.id, role=user.role)
 
@@ -49,6 +47,7 @@ async def register_user(
     user: UserInCreate,
     db_session: AsyncSession = Depends(get_session),
 ) -> UserInResponse:
+    # TODO exclude user id from body
     user = UserInDb(
         id=user.id,
         username=user.username,
