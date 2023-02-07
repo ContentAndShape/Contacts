@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 CONTACT_DOES_NOT_EXIST_EXCEPTION = HTTPException(
     status_code=404, 
-    detail="Contact doesn't exist",
+    detail="No contacts found",
 )
 PHONE_NUM_FORMAT_EXCEPTION = HTTPException(
     status_code=422, 

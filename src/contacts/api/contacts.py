@@ -8,7 +8,6 @@ from contacts.models.schemas.contacts import (
     ContactWithId,
     ContactInCreate,
     ContactInUpdate,
-    ContactInDelete,
     ContactInResponse,
     ContactsInResponse
 )
@@ -27,6 +26,7 @@ from contacts.db.crud.contacts import (
     get_user_contacts_with_filters, 
     create_contact as create_contact_, 
     update_contact as update_contact_,
+    delete_contact as delete_contact_,
 )
 from contacts.helpers.contacts import user_has_contact_with_such_number
 from contacts.resources.errors.contacts import (
@@ -118,3 +118,19 @@ async def update_contact(
     db_session: AsyncSession = Depends(get_session),
 ) -> None:
     await update_contact_(db_session=db_session, id=contact_id, **request_contact.dict())
+
+
+@router.delete(
+    "/{contact_id}",
+    status_code=204,
+    dependencies=[
+        Depends(process_jwt),
+        Depends(check_contact_existence),
+        Depends(validate_contact_ownership),
+    ],
+)
+async def delete_contact(
+    contact_id: uuid.UUID,
+    db_session: AsyncSession = Depends(get_session),
+) -> None:
+    await delete_contact_(db_session=db_session, id=contact_id)

@@ -4,7 +4,7 @@ from typing import List
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.engine import ChunkedIteratorResult
-from sqlalchemy import insert, update
+from sqlalchemy import insert, update, delete
 from sqlalchemy.future import select
 
 from contacts.models.db.tables import Contact
@@ -143,4 +143,10 @@ async def update_contact(
                 Contact.phone_number,
             )
         )
+        await db_session.execute(stmt)
+
+
+async def delete_contact(db_session: AsyncSession, id: uuid.UUID) -> None:
+    async with db_session.begin():
+        stmt = delete(Contact).where(Contact.id == str(id))
         await db_session.execute(stmt)

@@ -213,4 +213,52 @@ class TestUpdate:
         assert response.status_code == 404
         assert response.json()["detail"] == CONTACT_DOES_NOT_EXIST_EXCEPTION.detail
 
-#TODO test delete user/admin role
+
+@pytest.mark.usefixtures("create_tables")
+class TestDelete:
+    @pytest.mark.asyncio
+    async def test_admin_delete_user_contact(self, client: AsyncClient):
+        admin = await create_user(role=UserRoleEnum.admin.value)
+        user = await create_user()
+        contact = model_generator.Contact(owner_id=user.id)
+        await create_contact(id=contact.id, owner_id=user.id)
+        token = await get_access_token(username=admin.username, password=admin.password)
+        contact.id = str(contact.id)
+
+        response = await client.delete(url=f"/contacts/{contact.id}", headers=get_headers(token))
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_user_delete_someones_contact(self, client: AsyncClient):
+        user1 = await create_user()
+        contact_update = model_generator.Contact(owner_id=user1.id)
+        contact_update.id = str(contact_update.id)
+        token = await get_access_token(user1.username, user1.password)
+        user2 = await create_user()
+        user2_contact = await create_contact(owner_id=user2.id)
+
+        response = await client.delete(url=f"/contacts/{user2_contact.id}", headers=get_headers(token))
+        assert response.status_code == 403
+        assert response.json()["detail"] == USER_CONTACT_OWNERSHIP_EXCEPTION.detail
+
+    @pytest.mark.asyncio
+    async def test_user_delete_own_contact(self, client: AsyncClient):
+        user = await create_user()
+        token = await get_access_token(user.username, user.password)
+        contact = await create_contact(owner_id=user.id)
+        contact_update = model_generator.Contact(owner_id=user.id)
+        contact_update.id = str(contact_update.id)
+
+        response = await client.delete(url=f"/contacts/{contact.id}", headers=get_headers(token))
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_404(self, client: AsyncClient):
+        user = await create_user()
+        token = await get_access_token(user.username, user.password)
+        non_existing_contact = model_generator.Contact(owner_id=user.id)
+        non_existing_contact.id = str(non_existing_contact.id)
+
+        response = await client.delete(url=f"/contacts/{non_existing_contact.id}", headers=get_headers(token))
+        assert response.status_code == 404
+        assert response.json()["detail"] == CONTACT_DOES_NOT_EXIST_EXCEPTION.detail

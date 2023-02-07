@@ -38,10 +38,6 @@ class ContactInUpdate(BaseModel):
     phone_number: Optional[str]
 
 
-class ContactInDelete(BaseModel):
-    id: uuid.UUID
-
-
 class ContactInResponse(BaseModel):
     contact: ContactWithId
 
