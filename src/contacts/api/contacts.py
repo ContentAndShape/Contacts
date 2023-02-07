@@ -18,6 +18,8 @@ from .dependencies.db import get_session
 from .dependencies.api import (
     process_jwt, 
     get_payload_from_jwt, 
+    validate_contact_ownership,
+    check_contact_existence,
     get_filter_params, 
     validate_phone_number,
 )
@@ -98,7 +100,12 @@ async def get_contacts(
 @router.put(
     "/{contact_id}", 
     status_code=204,
-    dependencies=[Depends(process_jwt), Depends(validate_phone_number)],
+    dependencies=[
+    Depends(process_jwt),
+    Depends(check_contact_existence),
+    Depends(validate_contact_ownership),
+    Depends(validate_phone_number),
+    ],
 )
 async def update_contact(
     contact_id: uuid.UUID,
@@ -106,19 +113,4 @@ async def update_contact(
     payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
 ) -> None:
-    contact_to_update = await get_contact(id=contact_id, db_session=db_session)
-    if contact_to_update is None:
-        raise HTTPException(status_code=404, detail="contact not found")
-
-    if payload.role == UserRoleEnum.admin.value:
-        await update_contact_(db_session=db_session, id=contact_id, **request_contact.dict())
-
-    if payload.role == UserRoleEnum.user.value:
-        if not await contact_is_owned_by_user(
-            contact_id=contact_id, 
-            user_id=payload.sub, 
-            session=db_session
-        ):
-            raise HTTPException(status_code=403, detail="user does not own this contact")
-        else:
-            await update_contact_(db_session=db_session, id = contact_id, **request_contact.dict())
+    await update_contact_(db_session=db_session, id=contact_id, **request_contact.dict())
