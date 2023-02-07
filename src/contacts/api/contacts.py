@@ -87,6 +87,9 @@ async def get_contacts(
         order_by=order_by,
         db_session=db_session,
     )
+    if len(contacts) == 0:
+        raise HTTPException(status_code=404, detail="No contacts found")
+
     return ContactsInResponse(
         contacts=[ContactWithId(**contact.dict()) for contact in contacts]
     )

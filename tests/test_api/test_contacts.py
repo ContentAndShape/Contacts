@@ -102,6 +102,19 @@ class TestRead:
         assert "Incorrect order parameter" in response.json()["detail"]
 
     @pytest.mark.asyncio
+    async def test_404(self, client: AsyncClient):
+        user = model_generator.User()
+        user_data = {
+            "username": user.username,
+            "password": user.password,
+        }
+        user = await create_user(**user_data)
+        token = await get_access_token(**user_data)
+
+        response = await client.get(url="/contacts", headers=get_headers(token))
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_admin_get_all_contacts(self, client: AsyncClient):
         users_id = []
         contacts_id = []
