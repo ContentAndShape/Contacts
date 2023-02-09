@@ -51,7 +51,6 @@ async def create_contact(
     payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
 ) -> ContactInResponse:
-    # TODO validate email (or already validated by pydantic?)
     request_user_id = payload.sub
 
     if await user_has_contact_with_such_number(

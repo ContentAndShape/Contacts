@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.get(
     "/me",
-    response_model=BaseUser,
+    response_model=UserInResponse,
     dependencies=[Depends(process_jwt)],
     )
 async def get_me(
@@ -32,9 +32,10 @@ async def get_me(
     payload: PayloadData = Depends(get_payload_from_jwt),
     db_session: AsyncSession = Depends(get_session),
 ) -> BaseUser:
-    # TODO return username instead of id
     user = await get_user(session=db_session, id=payload.sub)
-    return BaseUser(id=user.id, role=user.role)
+    return UserInResponse(
+        user=BaseUser(id=user.id, username=user.username, role=user.role)
+    )
 
 
 @router.post(
@@ -47,7 +48,6 @@ async def register_user(
     user: UserInCreate,
     db_session: AsyncSession = Depends(get_session),
 ) -> UserInResponse:
-    # TODO exclude user id from body
     user = UserInDb(
         id=user.id,
         username=user.username,
@@ -56,5 +56,5 @@ async def register_user(
     )
     user = await create_user(session=db_session, user=user)
     return UserInResponse(
-        user=BaseUser(id=user.id, role=user.role)
+        user=BaseUser(id=user.id, username=user.username, role=user.role)
     )

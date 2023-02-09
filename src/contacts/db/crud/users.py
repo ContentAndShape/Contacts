@@ -1,3 +1,4 @@
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import insert
@@ -11,9 +12,8 @@ async def get_user(
     id: int | None = None,
     username: str | None = None,
 ) -> UserInDb | None:
-
     async with session.begin():
-        if id:
+        if id is not None:
             stmt = select(User).where(User.id == id)
         elif username:
             stmt = select(User).where(User.username == username)

@@ -91,12 +91,10 @@ def validate_phone_number(request_contact: BaseContact) -> None:
     if len(request_contact.phone_number) != 11:
         raise PHONE_NUM_LEN_EXCEPTION
     
-    # TODO try to int whole number
-    for char in request_contact.phone_number:
-        try:
-            int(char)
-        except ValueError:
-            raise PHONE_NUM_FORMAT_EXCEPTION
+    try:
+        int(request_contact.phone_number)
+    except ValueError:
+        raise PHONE_NUM_FORMAT_EXCEPTION
 
 
 async def check_contact_existence(contact_id: str, db_sesion = Depends(get_session)) -> None:
@@ -105,7 +103,6 @@ async def check_contact_existence(contact_id: str, db_sesion = Depends(get_sessi
         raise CONTACT_DOES_NOT_EXIST_EXCEPTION
 
 
-#TODO optimize this
 async def check_user_uniqueness(
     user: UserInCreate, 
     session: AsyncSession = Depends(get_session)

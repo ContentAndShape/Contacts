@@ -148,8 +148,6 @@ class TestRead:
         for id in contacts_id:
             assert id in response_contacts_id
 
-    # TODO test user read someone's contact
-
     @pytest.mark.asyncio
     async def test_user_get_all_contacts(self, client: AsyncClient):
         for i in range(5):
