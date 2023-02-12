@@ -60,11 +60,9 @@ def event_loop(request: FixtureRequest):
 @pytest.fixture(scope="session")
 def create_tables(request: FixtureRequest) -> None:
     Base.metadata.create_all(ENGINE)
-    #command.upgrade(ALEMBIC_CFG, "+1")
 
     def drop_tables() -> None:
         Base.metadata.drop_all(ENGINE)
-        #command.downgrade(ALEMBIC_CFG, "-1")
 
     request.addfinalizer(drop_tables)
 
