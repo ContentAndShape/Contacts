@@ -1,10 +1,10 @@
-import os
 import asyncio
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from pytest import FixtureRequest
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     create_async_engine, 
     AsyncSession,
@@ -20,6 +20,7 @@ from asgi_lifespan import LifespanManager
 
 from src.contacts.core.settings import get_settings
 from src.contacts.main import get_app
+from src.contacts.models.db.tables import Base
 from src.contacts.helpers.security import hash_password
 from src.contacts.models.db.tables import User, Contact
 from . import model_generator
@@ -30,11 +31,15 @@ API_URL = f'http://127.0.0.1:8000/api/v1'
 SETTINGS = get_settings()
 
 # DB
-NON_CACHED_DB_CONN_STR = SETTINGS.async_db_conn_str + "?prepared_statement_cache_size=0"
+NON_CACHED_DB_CONN_STR = SETTINGS.db_conn_str
+NON_CACHED_ASYNC_DB_CONN_STR = SETTINGS.async_db_conn_str + "?prepared_statement_cache_size=0"
+
 ALEMBIC_CFG = Config()
 ALEMBIC_CFG.set_main_option("script_location", "src/contacts/db/migrations")
-ALEMBIC_CFG.set_main_option('sqlalchemy.url', NON_CACHED_DB_CONN_STR)
-ASYNC_ENGINE = create_async_engine(NON_CACHED_DB_CONN_STR)
+ALEMBIC_CFG.set_main_option('sqlalchemy.url', NON_CACHED_ASYNC_DB_CONN_STR)
+
+ENGINE = create_engine(NON_CACHED_DB_CONN_STR)
+ASYNC_ENGINE = create_async_engine(NON_CACHED_ASYNC_DB_CONN_STR)
 ASYNC_SESSION = sessionmaker(
     ASYNC_ENGINE,
     expire_on_commit=False,
@@ -54,10 +59,12 @@ def event_loop(request: FixtureRequest):
 
 @pytest.fixture(scope="session")
 def create_tables(request: FixtureRequest) -> None:
-    command.upgrade(ALEMBIC_CFG, "+1")
+    Base.metadata.create_all(ENGINE)
+    #command.upgrade(ALEMBIC_CFG, "+1")
 
     def drop_tables() -> None:
-        command.downgrade(ALEMBIC_CFG, "-1")
+        Base.metadata.drop_all(ENGINE)
+        #command.downgrade(ALEMBIC_CFG, "-1")
 
     request.addfinalizer(drop_tables)
 

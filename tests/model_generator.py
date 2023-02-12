@@ -1,13 +1,9 @@
 from dataclasses import dataclass, field
-import enum
 import uuid
 import string
 import random
 
-
-class Role(enum.Enum):
-    admin = 'admin'
-    user = 'user'
+from src.contacts.models.schemas.meta import UserRoleEnum
 
 
 def rand_str(len: int = 10) -> str:
@@ -27,7 +23,7 @@ class User:
     id: int = field(default_factory=lambda: random.randrange(0, 10000))
     username: str = field(default_factory=rand_str)
     password: str = field(default_factory=rand_str)
-    role: Role = Role.user.value
+    role: UserRoleEnum = UserRoleEnum.user.value
 
 
 @dataclass

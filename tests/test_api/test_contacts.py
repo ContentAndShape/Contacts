@@ -146,7 +146,7 @@ class TestRead:
             contact["id"] for contact in response.json()["contacts"]
         ]
         for id in contacts_id:
-            assert id in response_contacts_id
+            assert str(id) in response_contacts_id
 
     @pytest.mark.asyncio
     async def test_user_get_all_contacts(self, client: AsyncClient):
@@ -159,7 +159,7 @@ class TestRead:
         token = await get_access_token(username=user.username, password=user.password)
 
         response = await client.get(url="/contacts", headers=get_headers(token))
-        assert response.json()["contacts"][0]["id"] == contact.id
+        assert response.json()["contacts"][0]["id"] == str(contact.id)
 
 
 @pytest.mark.usefixtures("create_tables")
