@@ -13,8 +13,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import insert
 from sqlalchemy.future import select
 from sqlalchemy.engine import ScalarResult
-from alembic.config import Config
-from alembic import command
 from httpx import AsyncClient
 from asgi_lifespan import LifespanManager
 
@@ -31,14 +29,9 @@ API_URL = f'http://127.0.0.1:8000/api/v1'
 SETTINGS = get_settings()
 
 # DB
-NON_CACHED_DB_CONN_STR = SETTINGS.db_conn_str
 NON_CACHED_ASYNC_DB_CONN_STR = SETTINGS.async_db_conn_str + "?prepared_statement_cache_size=0"
 
-ALEMBIC_CFG = Config()
-ALEMBIC_CFG.set_main_option("script_location", "src/contacts/db/migrations")
-ALEMBIC_CFG.set_main_option('sqlalchemy.url', NON_CACHED_ASYNC_DB_CONN_STR)
-
-ENGINE = create_engine(NON_CACHED_DB_CONN_STR)
+ENGINE = create_engine(SETTINGS.db_conn_str)
 ASYNC_ENGINE = create_async_engine(NON_CACHED_ASYNC_DB_CONN_STR)
 ASYNC_SESSION = sessionmaker(
     ASYNC_ENGINE,
