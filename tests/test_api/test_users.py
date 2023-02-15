@@ -10,13 +10,13 @@ from src.contacts.resources.errors.users import (
     USER_ID_EXIST_EXCEPTION,
     USERNAME_EXIST_EXCEPTION,
 )
+from src.contacts.resources.errors.auth import MALFORMED_TOKEN_EXCEPTION
 
 
 @pytest.mark.usefixtures("create_tables")
-class TestLogin:
-
+class TestAuth:
     @pytest.mark.asyncio
-    async def test_login_401(self, client: AsyncClient):
+    async def test_incorrect_creds(self, client: AsyncClient):
         username = 'foo1'
         password = '123'
         user = await create_user(username=username, password=password)
@@ -31,7 +31,7 @@ class TestLogin:
         assert response.json()["detail"] == INCORRECT_CREDENTIALS_EXCEPTION.detail
 
     @pytest.mark.asyncio
-    async def test_login_200(self, client: AsyncClient):
+    async def test_success(self, client: AsyncClient):
         username = 'foo2'
         password = '123'
         user = await create_user(username=username, password=password)
@@ -42,6 +42,19 @@ class TestLogin:
 
         response = await client.post(url="/auth/token", data=data)
         assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_malformed_token(self, client: AsyncClient):
+        user = await create_user()
+        token = await get_access_token(username=user.username, password=user.password)
+        header, payload, signature = token.split(".")
+        sign_chars = [*signature]
+        sign_chars[-1] = "o"
+        malformed_token = f"{header}.{payload}.{''.join(sign_chars)}"
+        
+        response = await client.get("/users/me", headers=get_headers(malformed_token))
+        assert response.status_code == 401
+        assert response.json()["detail"] == MALFORMED_TOKEN_EXCEPTION.detail
 
 
 @pytest.mark.usefixtures("create_tables")
