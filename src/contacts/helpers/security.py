@@ -4,7 +4,6 @@ import bcrypt
 
 from contacts.models.schemas.auth import PayloadData
 from contacts.resources.errors.auth import (
-    TOKEN_DECODE_EXCEPTION,
     EXPIRED_TOKEN_SIGNATURE_EXCEPTION,
     MALFORMED_TOKEN_EXCEPTION,
 )
@@ -28,22 +27,12 @@ def generate_jwt(
     )
 
 
-def token_is_authenticated(token: str, secret: str) -> bool:
-    payload = jwt.decode(token, secret, algorithms=[ALGORITHM])
-    original_token = jwt.encode(payload, secret, ALGORITHM)
-
-    return True if token == original_token else False
-
-
 def validate_jwt(token: str, secret: str) -> None:
     try:
         jwt.decode(token, secret, algorithms=[ALGORITHM])
-    except jwt.exceptions.DecodeError:
-        raise TOKEN_DECODE_EXCEPTION
-    except jwt.ExpiredSignatureError:
+    except jwt.exceptions.ExpiredSignatureError:
         raise EXPIRED_TOKEN_SIGNATURE_EXCEPTION
-
-    if not token_is_authenticated(token, secret):
+    except jwt.exceptions.InvalidTokenError:
         raise MALFORMED_TOKEN_EXCEPTION
 
 
