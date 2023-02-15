@@ -11,8 +11,6 @@ def email_is_valid(email: str) -> bool:
     return False
 
 
-#TODO merge user_owns_contact and contact_is_owned_by_user
-
 async def contact_is_owned_by_user(
     contact_id: uuid.UUID, 
     user_id: int, 
