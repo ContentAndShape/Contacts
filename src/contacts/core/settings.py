@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     @property
     def db_conn_str(self) -> str:
         return (
-            f"postgresql://{self._db_creds}"
+            f"postgresql+psycopg2://{self._db_creds}"
         )
 
     @property
