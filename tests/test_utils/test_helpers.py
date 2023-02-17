@@ -1,21 +1,9 @@
-import datetime
-import jwt
-
 import pytest
 
-from src.contacts.models.schemas.auth import PayloadData
 from src.contacts.helpers.auth import authenticate_user
 from src.contacts.helpers.contacts import contact_is_owned_by_user, user_has_contact_with_such_number
-from src.contacts.helpers.security import (
-    validate_jwt,
-    hash_password,
-    passwords_match,
-    get_payload_from_jwt,
-)
 from src.contacts.main import get_app
-from src.contacts.helpers.security import ALGORITHM
-from src.contacts.resources.errors.auth import MALFORMED_TOKEN_EXCEPTION
-from ..conftest import ASYNC_SESSION, create_user, create_contact, create_tables, client
+from ..conftest import ASYNC_SESSION, create_user, create_contact
 from ..model_generator import User, Contact
 
 

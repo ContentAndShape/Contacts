@@ -50,7 +50,3 @@ def passwords_match(plain_pw: str, hashed_pw: str) -> bool:
         plain_pw.encode("utf-8"),
         hashed_pw.encode("utf-8"),
     )
-
-
-def get_payload_from_jwt(token: str, secret: str) -> dict:
-    return jwt.decode(token, secret, algorithms=[ALGORITHM])
