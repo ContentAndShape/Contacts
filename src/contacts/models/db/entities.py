@@ -1,5 +1,5 @@
 import uuid
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserInDb(BaseModel):
@@ -10,7 +10,7 @@ class UserInDb(BaseModel):
 
 
 class ContactInDb(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     owner_id: int
     last_name: str
     first_name: str
