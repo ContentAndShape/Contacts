@@ -6,8 +6,19 @@ import pytest
 from src.contacts.models.db.entities import ContactInDb
 from src.contacts.models.schemas.meta import ContactsFilterParams
 from ..model_generator import Contact, User
-from ..conftest import create_user as create_user_, create_contact as create_contact_, get_contact as get_contact_,ASYNC_SESSION
-from src.contacts.db.crud.contacts import create_contact, get_contact, get_user_contacts_with_filters, update_contact
+from ..conftest import (
+    create_user as create_user_,
+    create_contact as create_contact_,
+    get_contact as get_contact_,
+    ASYNC_SESSION,
+)
+from src.contacts.db.crud.contacts import (
+    create_contact,
+    get_contact,
+    get_user_contacts_with_filters,
+    update_contact,
+    delete_contact,
+)
 
 
 @pytest.mark.usefixtures("create_tables")
@@ -17,8 +28,10 @@ class TestCreate:
         user = await create_user_()
         contact = Contact(owner_id=user.id)
         contact = ContactInDb(**asdict(contact))
-        created_contact = await create_contact(db_session=ASYNC_SESSION(), contact=contact)
-        
+        created_contact = await create_contact(
+            db_session=ASYNC_SESSION(), contact=contact
+        )
+
         assert created_contact == contact
 
 
@@ -37,7 +50,9 @@ class TestRead:
         contact_model = Contact(owner_id=user.id)
         created_contact = ContactInDb(**asdict(contact_model))
         await create_contact_(**created_contact.dict())
-        got_contact = await get_contact(id=created_contact.id, db_session=ASYNC_SESSION())
+        got_contact = await get_contact(
+            id=created_contact.id, db_session=ASYNC_SESSION()
+        )
 
         assert got_contact == created_contact
 
@@ -53,9 +68,9 @@ class TestRead:
             user_id=user.id,
             db_session=ASYNC_SESSION(),
             filter_params=filters,
-            order_by='last_name',
+            order_by="last_name",
         )
-        
+
         assert got_contacts[0] == last_created_contact
 
     @pytest.mark.asyncio
@@ -68,7 +83,7 @@ class TestRead:
                 user_id=user.id,
                 db_session=ASYNC_SESSION(),
                 filter_params=filters,
-                order_by='last_name',
+                order_by="last_name",
             )
 
         assert len(got_contacts) == 3
@@ -83,20 +98,20 @@ class TestUpdate:
         await update_contact(
             db_session=ASYNC_SESSION(),
             id=contact.id,
-            last_name='updated',
-            first_name='updated',
-            middle_name='updated',
-            organisation='updated',
-            job_title='updated',
+            last_name="updated",
+            first_name="updated",
+            middle_name="updated",
+            organisation="updated",
+            job_title="updated",
         )
         desired = ContactInDb(
             id=contact.id,
             owner_id=user.id,
-            last_name='updated',
-            first_name='updated',
-            middle_name='updated',
-            organisation='updated',
-            job_title='updated',
+            last_name="updated",
+            first_name="updated",
+            middle_name="updated",
+            organisation="updated",
+            job_title="updated",
             email=contact.email,
             phone_number=contact.phone_number,
         )
@@ -115,3 +130,14 @@ class TestUpdate:
 
         assert updated == desired
 
+
+@pytest.mark.usefixtures("create_tables")
+class TestDelete:
+    @pytest.mark.asyncio
+    async def test_delete_contact(self):
+        user = await create_user_(**asdict(User()))
+        contact = await create_contact_(owner_id=user.id)
+        await delete_contact(db_session=ASYNC_SESSION(), id=contact.id)
+        deleted_contact = await get_contact_(id=contact.id)
+
+        assert deleted_contact is None

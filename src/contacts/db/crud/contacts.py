@@ -17,7 +17,6 @@ async def create_contact(
     contact: ContactInDb,
     db_session: AsyncSession,
 ) -> ContactInDb:
-
     async with db_session.begin():
         stmt = (
             insert(Contact).values(**contact.dict())
