@@ -4,6 +4,7 @@ from loguru import logger
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from contacts.models.db.entities import ContactInDb
 from contacts.models.schemas.contacts import (
     ContactWithId,
     ContactInCreate,
@@ -61,9 +62,8 @@ async def create_contact(
         raise USER_HAS_PHONE_NUM_EXCEPTION
 
     contact = await create_contact_(
-        owner_id=request_user_id,
+        contact=ContactInDb(owner_id=request_user_id, **request_contact.dict()),
         db_session=db_session,
-        **request_contact.dict(),
     )
 
     return ContactInResponse(

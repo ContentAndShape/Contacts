@@ -14,36 +14,17 @@ from .users import get_user
 
 
 async def create_contact(
-    owner_id: int,
-    last_name: str,
-    first_name: str,
-    middle_name: str,
-    organisation: str,
-    job_title: str,
-    email: str,
-    phone_number: str,
+    contact: ContactInDb,
     db_session: AsyncSession,
 ) -> ContactInDb:
-    contact_id = str(uuid.uuid4())
 
     async with db_session.begin():
         stmt = (
-            insert(Contact).
-            values(
-                id=contact_id,
-                owner_id=owner_id,
-                last_name=last_name,
-                first_name=first_name,
-                middle_name=middle_name,
-                organisation=organisation,
-                job_title=job_title,
-                email=email,
-                phone_number=phone_number,
-            )
+            insert(Contact).values(**contact.dict())
         )
         await db_session.execute(stmt)
         stmt = (
-            select(Contact).where(Contact.id == contact_id)
+            select(Contact).where(Contact.id == contact.id)
         )
         contact: Contact = await db_session.scalar(stmt)
 
@@ -66,8 +47,21 @@ async def get_contact(id: uuid.UUID, db_session: AsyncSession) -> ContactInDb | 
             select(Contact).
             where(Contact.id == str(id))
         )
-        result = await db_session.scalar(stmt)
-        return result
+        contact = await db_session.scalar(stmt)
+        if contact is None:
+            return contact
+
+        return ContactInDb(
+            id=contact.id,
+            owner_id=contact.owner_id,
+            last_name=contact.last_name,
+            first_name=contact.first_name,
+            middle_name=contact.middle_name,
+            organisation=contact.organisation,
+            job_title=contact.job_title,
+            email=contact.email,
+            phone_number=contact.phone_number,
+        )
 
 
 async def get_user_contacts_with_filters(
@@ -120,17 +114,18 @@ async def update_contact(
     phone_number: str | None = None,
 ) -> None:
     async with db_session.begin():
+        old_contact = await db_session.scalar(select(Contact).where(Contact.id == str(id)))
         stmt = (
             update(Contact).
             where(Contact.id == str(id)).
             values(
-                last_name=last_name,
-                first_name=first_name,
-                middle_name=middle_name,
-                organisation=organisation,
-                job_title=job_title,
-                email=email,
-                phone_number=phone_number,
+                last_name = last_name or old_contact.last_name,
+                first_name=first_name or old_contact.first_name,
+                middle_name=middle_name or old_contact.middle_name,
+                organisation=organisation or old_contact.organisation,
+                job_title=job_title or old_contact.job_title,
+                email=email or old_contact.email,
+                phone_number=phone_number or old_contact.phone_number,
             ).returning(
                 Contact.id,
                 Contact.owner_id,
