@@ -99,6 +99,13 @@ async def create_user(
     return user
 
 
+async def get_contact(id: UUID) -> ScalarResult:
+    async with ASYNC_SESSION() as session, session.begin():
+        contact = await session.scalar(select(Contact).where(Contact.id == id))
+
+    return contact
+
+
 async def create_contact(
     owner_id: int,
     phone_number: str | None = None,
