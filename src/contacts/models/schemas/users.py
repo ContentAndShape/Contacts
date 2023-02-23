@@ -4,7 +4,6 @@ from .meta import UserRoleEnum
 
 
 class BaseUser(BaseModel):
-    id: int
     username: str
     role: UserRoleEnum
 

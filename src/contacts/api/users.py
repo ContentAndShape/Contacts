@@ -37,7 +37,7 @@ async def get_me(
         user=BaseUser(id=user.id, username=user.username, role=user.role)
     )
 
-
+# TODO user create schema should not have id
 @router.post(
     "/register", 
     response_model=UserInResponse,
@@ -49,7 +49,6 @@ async def register_user(
     db_session: AsyncSession = Depends(get_session),
 ) -> UserInResponse:
     user = UserInDb(
-        id=user.id,
         username=user.username,
         hashed_password=hash_password(user.password),
         role=user.role,
